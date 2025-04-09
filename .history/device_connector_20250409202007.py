@@ -358,116 +358,61 @@ def generate_interfaces(base_ip):
 
 # В device_connector.py
 def update_interface_on_device(device_data, interface_data):
-    """Обновление интерфейса на сетевом устройстве с улучшенной обработкой ошибок
-    
-    Args:
-        device_data (dict): Данные для подключения к устройству
-        interface_data (dict): Параметры интерфейса для обновления
-    
-    Returns:
-        bool: True если обновление прошло успешно, False в случае ошибки
-    """
-    connection = None
+    connection = ConnectHandler(**device_params)
+    connection.global_delay_factor = 2  # Увеличиваем задержки
+    """Обновление интерфейса с улучшенной обработкой ошибок"""
     try:
-        # Определяем тип устройства
         device_type = device_data.get('device_type', 'Cisco').lower()
         netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
         
-        # Параметры подключения
         device_params = {
             'device_type': netmiko_device_type,
             'host': device_data['ip_address'],
             'username': device_data['username'],
             'password': device_data['password'],
             'secret': device_data.get('secret', ''),
-            'timeout': 20,  # Увеличенный таймаут
-            'session_timeout': 30,
-            'banner_timeout': 15,
-            'global_delay_factor': 2,  # Увеличенные задержки
+            'timeout': 15,
         }
         
         print(f"Подключение для обновления интерфейса {interface_data['interface_name']}...")
-        
-        # Подключаемся к устройству
         connection = ConnectHandler(**device_params)
         
-        # Включаем режим enable если требуется
-        if device_data.get('secret'):
-            try:
-                connection.enable()
-            except Exception as enable_error:
-                print(f"Ошибка входа в enable режим: {str(enable_error)}")
-                return False
-        
-        # Формируем команды в зависимости от типа устройства
-        if device_type == 'huawei':
-            commands = [
-                f"interface {interface_data['interface_name']}",
-                f"description {interface_data['description']}",
-                f"port default vlan {interface_data['vlan']}",
-                "undo shutdown" if interface_data['status'] == 'up' else "shutdown"
-            ]
-        else:  # Cisco и другие
-            commands = [
-                f"interface {interface_data['interface_name']}",
-                f"description {interface_data['description']}",
-                f"switchport access vlan {interface_data['vlan']}",
-                "no shutdown" if interface_data['status'] == 'up' else "shutdown"
-            ]
-        
-        print(f"Отправка команд: {commands}")
-        
-        # Отправляем команды с увеличенными задержками
         try:
-            # Входим в режим конфигурации
-            connection.config_mode()
+            if device_data.get('secret'):
+                connection.enable()
             
-            # Отправляем команды по одной с проверкой
-            for cmd in commands:
-                output = connection.send_command(
-                    cmd,
-                    delay_factor=2,
-                    expect_string=r'#|\]|>',  # Ожидаемые промпты
-                    strip_prompt=False,
-                    strip_command=False
-                )
-                print(f"Команда: {cmd}\nРезультат: {output[:200]}...")  # Логируем первые 200 символов
+            commands = [
+                f"interface {interface_data['interface_name']}",
+                f"description {interface_data['description']}",
+            ]
             
-            # Выходим из режима конфигурации
-            connection.exit_config_mode()
-            
-            # Для Cisco сохраняем конфигурацию
+            # Добавляем команды в зависимости от типа устройства
             if device_type == 'cisco':
-                save_output = connection.send_command(
-                    'write memory',
-                    delay_factor=2,
-                    expect_string=r'#|\]|>'
-                )
-                print(f"Сохранение конфигурации: {save_output[:200]}...")
+                commands.append(f"switchport access vlan {interface_data['vlan']}")
+            else:
+                commands.append(f"port default vlan {interface_data['vlan']}")
+            
+            commands.append("no shutdown" if interface_data['status'] == 'up' else "shutdown")
+            
+            print(f"Отправка команд: {commands}")
+            output = connection.send_config_set(commands)
+            print(f"Результат выполнения команд:\n{output}")
+            
+            # Проверяем успешность выполнения
+            if 'Invalid input' in output or 'Error' in output:
+                raise Exception(f"Ошибка выполнения команд: {output}")
             
             return True
             
-        except Exception as cmd_error:
-            print(f"Ошибка выполнения команд: {str(cmd_error)}")
+        except Exception as inner_error:
+            print(f"Ошибка при обновлении интерфейса: {str(inner_error)}")
             return False
+        finally:
+            connection.disconnect()
             
-    except NetmikoAuthenticationException as auth_error:
-        print(f"Ошибка аутентификации: {str(auth_error)}")
-        return False
-    except NetmikoTimeoutException as timeout_error:
-        print(f"Таймаут подключения: {str(timeout_error)}")
-        return False
     except Exception as e:
-        print(f"Общая ошибка: {str(e)}")
+        print(f"Ошибка подключения для обновления интерфейса: {str(e)}")
         return False
-    finally:
-        # Всегда закрываем соединение
-        if connection:
-            try:
-                connection.disconnect()
-                print("Соединение закрыто")
-            except Exception as disconnect_error:
-                print(f"Ошибка при закрытии соединения: {str(disconnect_error)}")
 
 
 def get_device_type(device_type):

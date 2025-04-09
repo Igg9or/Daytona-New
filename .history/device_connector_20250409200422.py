@@ -86,39 +86,78 @@ def parse_cpu(cpu_str):
     match = re.search(r'(\d+)%', cpu_str)
     return f"{match.group(1)}%" if match else "0%"
 
-def parse_memory(memory_str):
-    """Парсим использование памяти"""
+def parse_memory(connection, device_type):
+    """Универсальное получение информации о памяти"""
     try:
-        # Пример для Cisco: "Processor memory: 1000000K total, 300000K used, 700000K free"
-        total_match = re.search(r'total\s*:\s*(\d+)', memory_str)
-        used_match = re.search(r'used\s*:\s*(\d+)', memory_str)
+        # Пробуем разные команды для разных устройств
+        commands_to_try = [
+            'show memory statistics',
+            'show memory summary',
+            'show memory',
+            'show processes memory'
+        ]
         
-        if total_match and used_match:
-            total = int(total_match.group(1))
-            used = int(used_match.group(1))
-            percent = (used / total) * 100
-            return f"{used}K/{total}K ({int(percent)}%)"
-        
+        for cmd in commands_to_try:
+            try:
+                output = connection.send_command(cmd, delay_factor=2)
+                
+                # Паттерны для разных форматов вывода
+                patterns = [
+                    # Для Catalyst и IOS
+                    (r'Processor\s+pool\s*:\s*(\d+)\D+(\d+)\D+(\d+)', 
+                     lambda m: f"{int(m.group(2))/1024}M/{int(m.group(1))/1024}M ({int((int(m.group(2))/int(m.group(1)))*100)}%)"),
+                    
+                    # Для ISR серии
+                    (r'Total\s*:\s*(\d+)\D+Used\s*:\s*(\d+)\D+Free\s*:\s*(\d+)',
+                     lambda m: f"{int(m.group(2))/1024}M/{int(m.group(1))/1024}M ({int((int(m.group(2))/int(m.group(1)))*100)}%)"),
+                    
+                    # Для 100v серии
+                    (r'Memory\s+usage\s*:\s*(\d+)\D+total\D+(\d+)\D+used\D+(\d+)',
+                     lambda m: f"{int(m.group(2))/1024}M/{int(m.group(1))/1024}M ({int((int(m.group(2))/int(m.group(1)))*100)}%)")
+                ]
+                
+                for pattern, formatter in patterns:
+                    match = re.search(pattern, output, re.IGNORECASE)
+                    if match:
+                        return formatter(match)
+                        
+            except:
+                continue
+                
         return "N/A"
     except Exception:
         return "N/A"
     
 def get_temperature(connection, device_type):
-    """Получение температуры устройства с обработкой ошибок"""
+    """Универсальное получение температуры для разных Cisco устройств"""
     try:
-        if device_type and device_type.lower() == 'cisco':
-            temp_output = send_command_safe(connection, 'show environment temperature')
-            if 'invalid' in temp_output.lower():
-                return "N/A"
-            
-            match = re.search(r'Temperature:\s*(\d+)\s*C', temp_output, re.IGNORECASE)
-            return f"{match.group(1)}°C" if match else "N/A"
+        # Пробуем разные команды для разных устройств
+        commands_to_try = [
+            'show environment temperature',
+            'show environment all',
+            'show temperature',
+            'show env all'
+        ]
         
-        elif device_type and device_type.lower() == 'huawei':
-            temp_output = send_command_safe(connection, 'display temperature all')
-            match = re.search(r'Temperature\s*:\s*(\d+)', temp_output)
-            return f"{match.group(1)}°C" if match else "N/A"
-        
+        for cmd in commands_to_try:
+            try:
+                output = connection.send_command(cmd, delay_factor=2)
+                if not ('invalid' in output.lower() or 'error' in output.lower()):
+                    # Парсим для разных форматов вывода
+                    patterns = [
+                        r'Temperature:\s*(\d+)\s*C',  # Для Catalyst
+                        r'Sensor\s+\d+\s*:\s*(\d+)',   # Для ISR
+                        r'Temp:\s*(\d+)°C',           # Для некоторых моделей
+                        r'CPU\s*Temperature\s*:\s*(\d+)'  # Для 100v серии
+                    ]
+                    
+                    for pattern in patterns:
+                        match = re.search(pattern, output, re.IGNORECASE)
+                        if match:
+                            return f"{match.group(1)}°C"
+            except:
+                continue
+                
         return "N/A"
     except Exception:
         return "N/A"
@@ -138,44 +177,61 @@ def get_gateway(connection):
         return "N/A"   
     
 def collect_real_device_data(connection, device_data):
-    """Сбор реальных данных с устройства"""
-    start_time = datetime.now()  # Фиксируем время начала сбора данных
+    """Сбор данных с улучшенной обработкой разных устройств"""
+    start_time = datetime.now()
     
-    hostname = connection.find_prompt().replace('#', '').replace('>', '')
-    
-    uptime_output = connection.send_command('show version | include uptime')
-    uptime = parse_uptime(uptime_output)
-    
-    version_output = connection.send_command('show version | include Software')
-    software_version = version_output.split(',')[0].strip() if version_output else "N/A"
-    
-    cpu_output = connection.send_command('show processes cpu | include CPU')
-    cpu_load = parse_cpu(cpu_output)
-    
-    memory_output = connection.send_command('show memory statistics')
-    memory_usage = parse_memory(memory_output)
-    
-    interfaces_output = connection.send_command('show ip interface brief')
-    interfaces = parse_interfaces(connection, interfaces_output)  # Передаем connection для доп. информации
-    
-    # Рассчитываем время выполнения
-    exec_time = (datetime.now() - start_time).total_seconds()
-    
-    return {
-        'monitoring': {
-            'cpu_load': cpu_load,
-            'memory_usage': memory_usage,
-            'temperature': get_temperature(connection, device_data.get('device_type'))
-        },
-        'configuration': {
-            'hostname': hostname,
-            'gateway': get_gateway(connection),
-            'software_version': software_version,
-            'uptime': uptime
-        },
-        'interfaces': interfaces,
-        'connection_time': f"{exec_time:.2f} сек"
-    }
+    try:
+        hostname = connection.find_prompt().replace('#', '').replace('>', '')
+        
+        # Получаем uptime с учетом разных форматов
+        uptime = "N/A"
+        for cmd in ['show version | include uptime', 'show system uptime']:
+            try:
+                output = connection.send_command(cmd, delay_factor=2)
+                if output and 'invalid' not in output.lower():
+                    uptime = parse_uptime(output)
+                    break
+            except:
+                continue
+        
+        # Получаем версию ПО
+        software_version = "N/A"
+        for cmd in ['show version | include Software', 'show version | include IOS']:
+            try:
+                output = connection.send_command(cmd, delay_factor=2)
+                if output:
+                    software_version = output.split(',')[0].strip()
+                    break
+            except:
+                continue
+        
+        # Получаем данные
+        cpu_load = get_cpu_usage(connection)
+        memory_usage = parse_memory(connection, device_data.get('device_type'))
+        temperature = get_temperature(connection, device_data.get('device_type'))
+        interfaces = parse_interfaces(connection)
+        gateway = get_gateway(connection)
+        
+        exec_time = (datetime.now() - start_time).total_seconds()
+        
+        return {
+            'monitoring': {
+                'cpu_load': cpu_load,
+                'memory_usage': memory_usage,
+                'temperature': temperature
+            },
+            'configuration': {
+                'hostname': hostname,
+                'gateway': gateway,
+                'software_version': software_version,
+                'uptime': uptime
+            },
+            'interfaces': interfaces,
+            'connection_time': f"{exec_time:.2f} сек"
+        }
+    except Exception as e:
+        print(f"Ошибка при сборе данных: {str(e)}")
+        raise
 
 def parse_interfaces(connection, interfaces_str):
     """Парсим список интерфейсов с дополнительной информацией"""
@@ -358,116 +414,59 @@ def generate_interfaces(base_ip):
 
 # В device_connector.py
 def update_interface_on_device(device_data, interface_data):
-    """Обновление интерфейса на сетевом устройстве с улучшенной обработкой ошибок
-    
-    Args:
-        device_data (dict): Данные для подключения к устройству
-        interface_data (dict): Параметры интерфейса для обновления
-    
-    Returns:
-        bool: True если обновление прошло успешно, False в случае ошибки
-    """
-    connection = None
+    """Обновление интерфейса с улучшенной обработкой ошибок"""
     try:
-        # Определяем тип устройства
         device_type = device_data.get('device_type', 'Cisco').lower()
         netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
         
-        # Параметры подключения
         device_params = {
             'device_type': netmiko_device_type,
             'host': device_data['ip_address'],
             'username': device_data['username'],
             'password': device_data['password'],
             'secret': device_data.get('secret', ''),
-            'timeout': 20,  # Увеличенный таймаут
-            'session_timeout': 30,
-            'banner_timeout': 15,
-            'global_delay_factor': 2,  # Увеличенные задержки
+            'timeout': 15,
         }
         
         print(f"Подключение для обновления интерфейса {interface_data['interface_name']}...")
-        
-        # Подключаемся к устройству
         connection = ConnectHandler(**device_params)
         
-        # Включаем режим enable если требуется
-        if device_data.get('secret'):
-            try:
-                connection.enable()
-            except Exception as enable_error:
-                print(f"Ошибка входа в enable режим: {str(enable_error)}")
-                return False
-        
-        # Формируем команды в зависимости от типа устройства
-        if device_type == 'huawei':
-            commands = [
-                f"interface {interface_data['interface_name']}",
-                f"description {interface_data['description']}",
-                f"port default vlan {interface_data['vlan']}",
-                "undo shutdown" if interface_data['status'] == 'up' else "shutdown"
-            ]
-        else:  # Cisco и другие
-            commands = [
-                f"interface {interface_data['interface_name']}",
-                f"description {interface_data['description']}",
-                f"switchport access vlan {interface_data['vlan']}",
-                "no shutdown" if interface_data['status'] == 'up' else "shutdown"
-            ]
-        
-        print(f"Отправка команд: {commands}")
-        
-        # Отправляем команды с увеличенными задержками
         try:
-            # Входим в режим конфигурации
-            connection.config_mode()
+            if device_data.get('secret'):
+                connection.enable()
             
-            # Отправляем команды по одной с проверкой
-            for cmd in commands:
-                output = connection.send_command(
-                    cmd,
-                    delay_factor=2,
-                    expect_string=r'#|\]|>',  # Ожидаемые промпты
-                    strip_prompt=False,
-                    strip_command=False
-                )
-                print(f"Команда: {cmd}\nРезультат: {output[:200]}...")  # Логируем первые 200 символов
+            commands = [
+                f"interface {interface_data['interface_name']}",
+                f"description {interface_data['description']}",
+            ]
             
-            # Выходим из режима конфигурации
-            connection.exit_config_mode()
-            
-            # Для Cisco сохраняем конфигурацию
+            # Добавляем команды в зависимости от типа устройства
             if device_type == 'cisco':
-                save_output = connection.send_command(
-                    'write memory',
-                    delay_factor=2,
-                    expect_string=r'#|\]|>'
-                )
-                print(f"Сохранение конфигурации: {save_output[:200]}...")
+                commands.append(f"switchport access vlan {interface_data['vlan']}")
+            else:
+                commands.append(f"port default vlan {interface_data['vlan']}")
+            
+            commands.append("no shutdown" if interface_data['status'] == 'up' else "shutdown")
+            
+            print(f"Отправка команд: {commands}")
+            output = connection.send_config_set(commands)
+            print(f"Результат выполнения команд:\n{output}")
+            
+            # Проверяем успешность выполнения
+            if 'Invalid input' in output or 'Error' in output:
+                raise Exception(f"Ошибка выполнения команд: {output}")
             
             return True
             
-        except Exception as cmd_error:
-            print(f"Ошибка выполнения команд: {str(cmd_error)}")
+        except Exception as inner_error:
+            print(f"Ошибка при обновлении интерфейса: {str(inner_error)}")
             return False
+        finally:
+            connection.disconnect()
             
-    except NetmikoAuthenticationException as auth_error:
-        print(f"Ошибка аутентификации: {str(auth_error)}")
-        return False
-    except NetmikoTimeoutException as timeout_error:
-        print(f"Таймаут подключения: {str(timeout_error)}")
-        return False
     except Exception as e:
-        print(f"Общая ошибка: {str(e)}")
+        print(f"Ошибка подключения для обновления интерфейса: {str(e)}")
         return False
-    finally:
-        # Всегда закрываем соединение
-        if connection:
-            try:
-                connection.disconnect()
-                print("Соединение закрыто")
-            except Exception as disconnect_error:
-                print(f"Ошибка при закрытии соединения: {str(disconnect_error)}")
 
 
 def get_device_type(device_type):
