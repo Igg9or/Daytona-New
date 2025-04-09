@@ -123,10 +123,6 @@ def get_temperature(connection, device_type):
     except Exception:
         return "N/A"
     
-def send_command_safe(connection, command, delay=1):
-    """Безопасная отправка команд с задержкой"""
-    time.sleep(delay)
-    return connection.send_command(command, delay_factor=2)
 
 def get_gateway(connection):
     """Получение шлюза по умолчанию"""

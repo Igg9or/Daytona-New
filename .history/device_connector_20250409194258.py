@@ -104,30 +104,34 @@ def parse_memory(memory_str):
         return "N/A"
     
 def get_temperature(connection, device_type):
-    """Получение температуры устройства с обработкой ошибок"""
+    """Получение температуры устройства"""
     try:
-        if device_type and device_type.lower() == 'cisco':
-            temp_output = send_command_safe(connection, 'show environment temperature')
+        if device_type.lower() == 'cisco':
+            # Для Cisco
+            temp_output = connection.send_command('show environment temperature')
             if 'invalid' in temp_output.lower():
                 return "N/A"
             
-            match = re.search(r'Temperature:\s*(\d+)\s*C', temp_output, re.IGNORECASE)
-            return f"{match.group(1)}°C" if match else "N/A"
-        
-        elif device_type and device_type.lower() == 'huawei':
-            temp_output = send_command_safe(connection, 'display temperature all')
+            # Парсим температуру (пример для Cisco)
+            match = re.search(r'Temperature:\s*(\d+)\s*C', temp_output)
+            if match:
+                return f"{match.group(1)}°C"
+            
+        elif device_type.lower() == 'huawei':
+            # Для Huawei
+            temp_output = connection.send_command('display temperature all')
+            if 'invalid' in temp_output.lower():
+                return "N/A"
+            
+            # Парсим температуру (пример для Huawei)
             match = re.search(r'Temperature\s*:\s*(\d+)', temp_output)
-            return f"{match.group(1)}°C" if match else "N/A"
+            if match:
+                return f"{match.group(1)}°C"
         
         return "N/A"
     except Exception:
         return "N/A"
     
-def send_command_safe(connection, command, delay=1):
-    """Безопасная отправка команд с задержкой"""
-    time.sleep(delay)
-    return connection.send_command(command, delay_factor=2)
-
 def get_gateway(connection):
     """Получение шлюза по умолчанию"""
     try:
