@@ -188,7 +188,6 @@ def collect_real_device_data(connection, device_data):
         except Exception as e:
             print(f"Ошибка при получении деталей интерфейса {intf['name']}: {str(e)}")
             continue
-        
     # Рассчитываем время выполнения
     exec_time = (datetime.now() - start_time).total_seconds()
     

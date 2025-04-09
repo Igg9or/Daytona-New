@@ -7,20 +7,11 @@ from flask import Flask, render_template, session, redirect, url_for
 from netmiko import ConnectHandler, NetmikoTimeoutException, NetmikoAuthenticationException
 import re
 from datetime import datetime
-import logging
-from logging.handlers import RotatingFileHandler
-
 
 app = Flask(__name__, static_url_path='/static')
 app.secret_key = 'your-secret-key'  # Ваш секретный ключ
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 час
 
-handler = RotatingFileHandler('app.log', maxBytes=10000, backupCount=1)
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-app.logger.addHandler(handler)
-app.logger.setLevel(logging.DEBUG)
 
 interfaces_store = [
     {
@@ -209,6 +200,7 @@ def get_interface_details():
     device_type = device_data.get('device_type', 'Cisco').lower()
     
     try:
+        # Подключаемся к устройству
         netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
         device_params = {
             'device_type': netmiko_device_type,
@@ -216,13 +208,11 @@ def get_interface_details():
             'username': device_data['username'],
             'password': device_data['password'],
             'secret': device_data.get('secret', ''),
-            'timeout': 20,
+            'timeout': 15,
             'session_timeout': 30,
             'global_delay_factor': 2,
-            'session_log': 'netmiko_session.log'
         }
         
-        app.logger.info(f"Подключение к {device_data['ip_address']} для получения интерфейса {interface_name}")
         connection = ConnectHandler(**device_params)
         
         try:
@@ -235,48 +225,34 @@ def get_interface_details():
             else:
                 details_cmd = f'show interface {interface_name}'
             
-            app.logger.debug(f"Отправка команды: {details_cmd}")
             details = connection.send_command(details_cmd, delay_factor=2)
-            app.logger.debug(f"Полученные данные:\n{details[:500]}...")  # Логируем первые 500 символов
             
-            if not details:
-                raise ValueError("Пустой ответ от устройства")
-            
+            # Парсим данные в зависимости от типа устройства
             if device_type == 'huawei':
                 interface_data = parse_huawei_interface_details(details)
             else:
                 interface_data = parse_cisco_interface_details(details)
             
             interface_data['name'] = interface_name
-            interface_data['raw_data'] = details[:1000]  # Для отладки
             
-            app.logger.info(f"Успешно получены данные интерфейса {interface_name}")
             return jsonify(interface_data)
             
         except Exception as e:
-            app.logger.error(f"Ошибка при получении данных интерфейса {interface_name}: {str(e)}", exc_info=True)
+            app.logger.error(f"Ошибка при получении данных интерфейса: {str(e)}")
             return jsonify({
                 'error': f'Не удалось получить данные интерфейса: {str(e)}',
-                'name': interface_name,
-                'device_type': device_type,
-                'suggestions': [
-                    'Проверьте правильность имени интерфейса',
-                    'Убедитесь, что устройство поддерживает команду',
-                    'Проверьте права доступа'
-                ]
+                'name': interface_name
             }), 500
             
         finally:
             connection.disconnect()
             
-    except NetmikoAuthenticationException as auth_error:
-        app.logger.error(f"Ошибка аутентификации: {str(auth_error)}")
+    except NetmikoAuthenticationException:
         return jsonify({'error': 'Ошибка аутентификации'}), 401
-    except NetmikoTimeoutException as timeout_error:
-        app.logger.error(f"Таймаут подключения: {str(timeout_error)}")
+    except NetmikoTimeoutException:
         return jsonify({'error': 'Таймаут подключения'}), 408
     except Exception as e:
-        app.logger.error(f"Ошибка подключения: {str(e)}", exc_info=True)
+        app.logger.error(f"Ошибка подключения: {str(e)}")
         return jsonify({'error': f'Ошибка подключения: {str(e)}'}), 500
 
 def parse_cisco_interface_details(details):
@@ -308,33 +284,34 @@ def parse_cisco_interface_details(details):
 
 
 def parse_huawei_interface_details(details):
-    """Парсинг деталей интерфейса для Huawei устройств с защитой от ошибок"""
-    def safe_regex(pattern, text, default='N/A'):
-        match = re.search(pattern, text)
-        return match.group(1).strip() if match else default
-
+    """Парсинг деталей интерфейса для Huawei устройств"""
     status = 'up' if 'current state : up' in details.lower() else 'down'
     
-    ip_info = safe_regex(r'Internet Address is (.+?)\s', details)
-    ip_parts = ip_info.split('/') if ip_info != 'N/A' else ['N/A', 'N/A']
+    # Парсим MAC-адрес (может быть в разных форматах)
+    mac_match = re.search(r'Hardware address is (.+?)\s', details) or \
+                re.search(r'Hardware addr is (.+?)\s', details)
+    
+    # Парсим IP-адрес и маску
+    ip_info = re.search(r'Internet Address is (.+?)\s', details)
+    ip_address = ip_info.group(1).split('/')[0] if ip_info else 'N/A'
+    netmask = ip_info.group(1).split('/')[1] if ip_info and '/' in ip_info.group(1) else 'N/A'
     
     return {
-        'description': safe_regex(r'Description:(.+?)\n', details),
+        'description': re.search(r'Description:(.+?)\n', details).group(1).strip() if 'Description:' in details else 'N/A',
         'status': status,
-        'type': safe_regex(r'Port Type:(.+?)\n', details),
-        'speed': safe_regex(r'Speed :(.+?),', details),
-        'duplex': safe_regex(r'Duplex :(.+?)\n', details).lower(),
-        'mtu': safe_regex(r'The Maximum Transmit Unit is (\d+)', details, '1500'),
-        'mac_address': safe_regex(r'Hardware address is (.+?)\s', details) or 
-                      safe_regex(r'Hardware addr is (.+?)\s', details),
-        'ip_address': ip_parts[0],
-        'netmask': ip_parts[1] if len(ip_parts) > 1 else 'N/A',
-        'last_input': safe_regex(r'Last 300 seconds input rate: (.+?) ', details) + ' bps' if safe_regex(r'Last 300 seconds input rate: (.+?) ', details) != 'N/A' else 'N/A',
-        'last_output': safe_regex(r'Last 300 seconds output rate: (.+?) ', details) + ' bps' if safe_regex(r'Last 300 seconds output rate: (.+?) ', details) != 'N/A' else 'N/A',
-        'input_rate': safe_regex(r'Input bandwidth utilization : (.+?)%', details) + '%' if safe_regex(r'Input bandwidth utilization : (.+?)%', details) != 'N/A' else 'N/A',
-        'output_rate': safe_regex(r'Output bandwidth utilization : (.+?)%', details) + '%' if safe_regex(r'Output bandwidth utilization : (.+?)%', details) != 'N/A' else 'N/A',
-        'input_errors': safe_regex(r'Input error: (\d+)', details, '0'),
-        'output_errors': safe_regex(r'Output error: (\d+)', details, '0')
+        'type': re.search(r'Port Type:(.+?)\n', details).group(1).strip() if 'Port Type:' in details else 'N/A',
+        'speed': re.search(r'Speed :(.+?),', details).group(1).strip() if 'Speed :' in details else 'N/A',
+        'duplex': re.search(r'Duplex :(.+?)\n', details).group(1).strip().lower() if 'Duplex :' in details else 'N/A',
+        'mtu': re.search(r'The Maximum Transmit Unit is (\d+)', details).group(1) if 'The Maximum Transmit Unit is' in details else '1500',
+        'mac_address': mac_match.group(1) if mac_match else 'N/A',
+        'ip_address': ip_address,
+        'netmask': netmask,
+        'last_input': re.search(r'Last 300 seconds input rate: (.+?) ', details).group(1) + ' bps' if 'Last 300 seconds input rate:' in details else 'N/A',
+        'last_output': re.search(r'Last 300 seconds output rate: (.+?) ', details).group(1) + ' bps' if 'Last 300 seconds output rate:' in details else 'N/A',
+        'input_rate': re.search(r'Input bandwidth utilization : (.+?)%', details).group(1) + '%' if 'Input bandwidth utilization :' in details else 'N/A',
+        'output_rate': re.search(r'Output bandwidth utilization : (.+?)%', details).group(1) + '%' if 'Output bandwidth utilization :' in details else 'N/A',
+        'input_errors': re.search(r'Input error: (\d+)', details).group(1) if 'Input error:' in details else '0',
+        'output_errors': re.search(r'Output error: (\d+)', details).group(1) if 'Output error:' in details else '0'
     }
 
 

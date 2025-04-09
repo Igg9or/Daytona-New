@@ -15,12 +15,6 @@ app = Flask(__name__, static_url_path='/static')
 app.secret_key = 'your-secret-key'  # Ваш секретный ключ
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 час
 
-handler = RotatingFileHandler('app.log', maxBytes=10000, backupCount=1)
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-app.logger.addHandler(handler)
-app.logger.setLevel(logging.DEBUG)
 
 interfaces_store = [
     {

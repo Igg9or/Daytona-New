@@ -7,20 +7,11 @@ from flask import Flask, render_template, session, redirect, url_for
 from netmiko import ConnectHandler, NetmikoTimeoutException, NetmikoAuthenticationException
 import re
 from datetime import datetime
-import logging
-from logging.handlers import RotatingFileHandler
-
 
 app = Flask(__name__, static_url_path='/static')
 app.secret_key = 'your-secret-key'  # Ваш секретный ключ
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 час
 
-handler = RotatingFileHandler('app.log', maxBytes=10000, backupCount=1)
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-app.logger.addHandler(handler)
-app.logger.setLevel(logging.DEBUG)
 
 interfaces_store = [
     {
@@ -209,6 +200,7 @@ def get_interface_details():
     device_type = device_data.get('device_type', 'Cisco').lower()
     
     try:
+        # Подключаемся к устройству
         netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
         device_params = {
             'device_type': netmiko_device_type,
@@ -216,13 +208,11 @@ def get_interface_details():
             'username': device_data['username'],
             'password': device_data['password'],
             'secret': device_data.get('secret', ''),
-            'timeout': 20,
+            'timeout': 15,
             'session_timeout': 30,
             'global_delay_factor': 2,
-            'session_log': 'netmiko_session.log'
         }
         
-        app.logger.info(f"Подключение к {device_data['ip_address']} для получения интерфейса {interface_name}")
         connection = ConnectHandler(**device_params)
         
         try:
@@ -235,48 +225,34 @@ def get_interface_details():
             else:
                 details_cmd = f'show interface {interface_name}'
             
-            app.logger.debug(f"Отправка команды: {details_cmd}")
             details = connection.send_command(details_cmd, delay_factor=2)
-            app.logger.debug(f"Полученные данные:\n{details[:500]}...")  # Логируем первые 500 символов
             
-            if not details:
-                raise ValueError("Пустой ответ от устройства")
-            
+            # Парсим данные в зависимости от типа устройства
             if device_type == 'huawei':
                 interface_data = parse_huawei_interface_details(details)
             else:
                 interface_data = parse_cisco_interface_details(details)
             
             interface_data['name'] = interface_name
-            interface_data['raw_data'] = details[:1000]  # Для отладки
             
-            app.logger.info(f"Успешно получены данные интерфейса {interface_name}")
             return jsonify(interface_data)
             
         except Exception as e:
-            app.logger.error(f"Ошибка при получении данных интерфейса {interface_name}: {str(e)}", exc_info=True)
+            app.logger.error(f"Ошибка при получении данных интерфейса: {str(e)}")
             return jsonify({
                 'error': f'Не удалось получить данные интерфейса: {str(e)}',
-                'name': interface_name,
-                'device_type': device_type,
-                'suggestions': [
-                    'Проверьте правильность имени интерфейса',
-                    'Убедитесь, что устройство поддерживает команду',
-                    'Проверьте права доступа'
-                ]
+                'name': interface_name
             }), 500
             
         finally:
             connection.disconnect()
             
-    except NetmikoAuthenticationException as auth_error:
-        app.logger.error(f"Ошибка аутентификации: {str(auth_error)}")
+    except NetmikoAuthenticationException:
         return jsonify({'error': 'Ошибка аутентификации'}), 401
-    except NetmikoTimeoutException as timeout_error:
-        app.logger.error(f"Таймаут подключения: {str(timeout_error)}")
+    except NetmikoTimeoutException:
         return jsonify({'error': 'Таймаут подключения'}), 408
     except Exception as e:
-        app.logger.error(f"Ошибка подключения: {str(e)}", exc_info=True)
+        app.logger.error(f"Ошибка подключения: {str(e)}")
         return jsonify({'error': f'Ошибка подключения: {str(e)}'}), 500
 
 def parse_cisco_interface_details(details):
