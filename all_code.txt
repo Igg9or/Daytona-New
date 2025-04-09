@@ -1,0 +1,1681 @@
+﻿
+
+================================================================================
+ФАЙЛ: C:\Users\yatma\Documents\Daytona-main + Huawei\static\css\styles.css
+РАЗМЕР: 7725 bytes
+ДАТА ИЗМЕНЕНИЯ: 04/08/2025 19:03:35
+================================================================================
+
+
+/* Общие стили */
+:root {
+    --primary: #4361ee;
+    --primary-light: #e0e7ff;
+    --success: #2ecc71;
+    --warning: #f39c12;
+    --danger: #e74c3c;
+    --dark: #2c3e50;
+    --light: #ecf0f1;
+    --gray: #95a5a6;
+    --sidebar-width: 250px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f5f7fa;
+    color: #333;
+    line-height: 1.6;
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Сайдбар */
+.sidebar {
+    width: var(--sidebar-width);
+    background-color: var(--dark);
+    color: white;
+    padding: 20px 0;
+    height: 100vh;
+    position: fixed;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+.sidebar-header {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.sidebar-menu {
+    list-style: none;
+}
+
+.menu-item {
+    padding: 12px 20px;
+    transition: all 0.3s;
+}
+
+.menu-item:hover {
+    background-color: rgba(255,255,255,0.1);
+}
+
+.menu-item a {
+    color: white;
+    text-decoration: none;
+    display: block;
+}
+
+.menu-item.active {
+    background-color: var(--primary);
+}
+
+/* Основное содержимое */
+.main-content {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Карточки */
+.card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+/* Таблицы */
+.interface-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.interface-table th {
+    background-color: var(--dark);
+    color: white;
+    padding: 12px 15px;
+    text-align: left;
+}
+
+.interface-table td {
+    padding: 10px 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.interface-table tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Статусы */
+.status-up {
+    color: var(--success);
+    font-weight: bold;
+}
+
+.status-down {
+    color: var(--danger);
+    font-weight: bold;
+}
+
+.status-disabled {
+    color: var(--gray);
+    font-weight: bold;
+}
+
+/* Кнопки */
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: var(--primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 0.3s;
+    border: none;
+    cursor: pointer;
+}
+
+.btn:hover {
+    background-color: #3a56d4;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Заголовки */
+h1, h2, h3 {
+    margin-bottom: 15px;
+}
+
+h1 {
+    font-size: 1.8rem;
+}
+
+h2 {
+    font-size: 1.4rem;
+    color: var(--dark);
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+.monitoring-section {
+    margin-bottom: 30px;
+}
+
+.section-title {
+    color: var(--dark);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.metric-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+}
+
+.metric-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.metric-header i {
+    font-size: 1.5rem;
+    color: var(--primary);
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.metric-percent {
+    font-size: 1rem;
+    color: var(--gray);
+}
+
+.metric-progress {
+    height: 8px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    margin: 15px 0;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 4px;
+}
+
+.metric-footer {
+    display: flex;
+    justify-content: space-between;
+    color: var(--gray);
+    font-size: 0.9rem;
+}
+
+.metric-trend {
+    font-weight: bold;
+}
+
+.metric-trend.up {
+    color: var(--success);
+}
+
+.metric-trend.down {
+    color: var(--danger);
+}
+
+/* Специфичные стили для карточек */
+.cpu-card .progress-bar {
+    background: linear-gradient(90deg, #4361ee, #3a0ca3);
+}
+
+.memory-card .progress-bar {
+    background: linear-gradient(90deg, #2ecc71, #27ae60);
+}
+
+.temp-card .progress-bar {
+    background: linear-gradient(90deg, #e74c3c, #c0392b);
+}
+
+/* Стили для информационных карточек */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.info-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.info-icon i {
+    font-size: 1.8rem;
+    color: var(--primary);
+    background: var(--primary-light);
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.info-content h3 {
+    margin: 0 0 5px 0;
+    font-size: 1.1rem;
+}
+
+.info-content p {
+    margin: 0;
+    color: var(--dark);
+    font-size: 1rem;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .metrics-grid, .info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+/* static/css/styles.css */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.metric-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.metric-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.metric-header i {
+    font-size: 1.5rem;
+    color: #4361ee;
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.metric-progress {
+    height: 8px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    margin: 15px 0;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: #4361ee;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.metric-footer {
+    display: flex;
+    justify-content: space-between;
+    color: #95a5a6;
+    font-size: 0.9rem;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+}
+/* Стили для модального окна */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 25px;
+    border-radius: 8px;
+    width: 50%;
+    max-width: 600px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    position: relative;
+}
+
+.close {
+    position: absolute;
+    right: 20px;
+    top: 15px;
+    font-size: 28px;
+    cursor: pointer;
+    color: #aaa;
+}
+
+.close:hover {
+    color: #333;
+}
+
+/* Стили формы */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn-edit {
+    background-color: var(--warning);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-edit:hover {
+    background-color: #e67e22;
+}
+
+/* Кнопки формы */
+.btn-save {
+    background-color: var(--success);
+    color: white;
+}
+
+.btn-cancel {
+    background-color: var(--gray);
+    color: white;
+}
+
+
+================================================================================
+ФАЙЛ: C:\Users\yatma\Documents\Daytona-main + Huawei\templates\device_status.html
+РАЗМЕР: 7877 bytes
+ДАТА ИЗМЕНЕНИЯ: 04/08/2025 20:08:08
+================================================================================
+
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Состояние устройства - {{ device_data.device_type }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        /* Временные inline-стили для примера */
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        .progress-bar {
+            height: 8px;
+            background: #4361ee;
+            border-radius: 4px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item active">
+                <a href="/device-status">Обзор системы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interfaces">Интерфейсы</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <!-- Заголовок -->
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-network-wired"></i> {{ device_status.configuration.hostname }}
+                    <span class="device-ip">{{ device_data.ip_address }}</span>
+                </h1>
+                <div class="dashboard-actions">
+                    <a href="/connect-device" class="btn btn-refresh">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </a>
+                </div>
+            </header>
+
+            <!-- Мониторинг системы -->
+            <section class="monitoring-section">
+                <h2 class="section-title">
+                    <i class="fas fa-chart-line"></i> Мониторинг системы
+                </h2>
+                
+                <div class="metrics-grid">
+                    <!-- CPU -->
+                    <div class="metric-card cpu-card">
+                        <div class="metric-header">
+                            <i class="fas fa-microchip"></i>
+                            <h3>Загрузка CPU</h3>
+                        </div>
+                        <div class="metric-value">{{ device_status.monitoring.cpu_load }}</div>
+                        <div class="metric-progress">
+                            <div class="progress-bar" style="width: {{ device_status.monitoring.cpu_load|replace('%','')|default(0, true)|int }}%"></div>
+                        </div>
+                        <div class="metric-footer">
+                            <span class="metric-label">5-секундная нагрузка</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Память -->
+                    <div class="metric-card memory-card">
+                        <div class="metric-header">
+                            <i class="fas fa-memory"></i>
+                            <h3>Использование памяти</h3>
+                        </div>
+                        <div class="metric-value">
+                            {{ device_status.monitoring.memory_usage.split('(')[0] }}
+                            {% if '(' in device_status.monitoring.memory_usage %}
+                            <span class="metric-percent">{{ device_status.monitoring.memory_usage.split('(')[1] }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="metric-progress">
+                            <div class="progress-bar" style="width: {{ device_status.monitoring.memory_usage.split('(')[1]|replace('%)','')|default(0, true)|int }}%"></div>
+                        </div>
+                        <div class="metric-footer">
+                            <span class="metric-label">Использовано/Всего</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Температура -->
+                    <div class="metric-card temp-card">
+                        <div class="metric-header">
+                            <i class="fas fa-thermometer-half"></i>
+                            <h3>Температура</h3>
+                        </div>
+                        <div class="metric-value">{{ device_status.monitoring.temperature }}</div>
+                        <div class="metric-progress">
+                            <div class="progress-bar" style="width: {{ device_status.monitoring.temperature|replace('°C','')|default(0, true)|float / 100 * 100 }}%"></div>
+                        </div>
+                        <div class="metric-footer">
+                            <span class="metric-label">Системная</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Основная информация -->
+            <section class="info-section">
+                <h2 class="section-title">
+                    <i class="fas fa-info-circle"></i> Основная информация
+                </h2>
+            
+                <div class="info-grid">
+                    <div class="info-card">
+                        <div class="info-icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <div class="info-content">
+                            <h3>Версия ПО</h3>
+                            <p>{{ device_status.configuration.software_version }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card">
+                        <div class="info-icon">
+                            <i class="fas fa-route"></i>
+                        </div>
+                        <div class="info-content">
+                            <h3>Шлюз</h3>
+                            <p>{{ device_status.configuration.gateway }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card">
+                        <div class="info-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="info-content">
+                            <h3>Время работы</h3>
+                            <p>{{ device_status.configuration.uptime }}</p>
+                        </div>
+                    </div>
+                    {% if device_data.device_type.lower() == 'huawei' %}
+                    <div class="info-card">
+                        <div class="info-icon">
+                            <i class="fas fa-id-card"></i>
+                        </div>
+                        <div class="info-content">
+                            <h3>Серийный номер</h3>
+                            <p>210231{{ range(1, 10000)|random }}ABCD</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <div class="last-update">
+                <i class="fas fa-clock"></i> Последнее обновление: {{ last_update }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Font Awesome для иконок -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</body>
+</html>
+
+
+================================================================================
+ФАЙЛ: C:\Users\yatma\Documents\Daytona-main + Huawei\templates\error.html
+РАЗМЕР: 2003 bytes
+ДАТА ИЗМЕНЕНИЯ: 04/08/2025 19:03:35
+================================================================================
+
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ошибка подключения</title>
+    <style>
+        /* Общие стили как в login.html */
+        body {
+            background-color: #f5f7fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .error-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .error-icon {
+            color: #ef233c;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #212529;
+            margin-bottom: 20px;
+        }
+        
+        .error-message {
+            background: #fff5f5;
+            border-left: 4px solid #ef233c;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        
+        .back-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #4361ee;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        
+        .back-btn:hover {
+            background-color: #3a56d4;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-card">
+        <div class="error-icon">⚠️</div>
+        <h1>Ошибка подключения</h1>
+        <div class="error-message">{{ error_message }}</div>
+        <a href="/" class="back-btn">Попробовать снова</a>
+    </div>
+</body>
+</html>
+
+
+================================================================================
+ФАЙЛ: C:\Users\yatma\Documents\Daytona-main + Huawei\templates\interfaces.html
+РАЗМЕР: 12254 bytes
+ДАТА ИЗМЕНЕНИЯ: 04/08/2025 20:07:02
+================================================================================
+
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Интерфейсы устройства</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item">
+                <a href="/device-status">Обзор системы</a>
+            </li>
+            <li class="menu-item active">
+                <a href="/interfaces">Интерфейсы</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-network-wired"></i> Интерфейсы
+                </h1>
+            </header>
+
+            <!-- Таблица интерфейсов -->
+            <div class="card">
+                <table class="interface-table">
+                    <thead>
+                        <tr>
+                            <th>Порт</th>
+                            <th>Описание</th>
+                            <th>Статус</th>
+                            <th>VLAN</th>
+                            <th>Дуплекс</th>
+                            <th>Скорость</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for intf in interfaces %}
+                        <tr>
+                            <td>{{ intf.name }}</td>
+                            <td>{{ intf.description }}</td>
+                            <td class="status-{{ intf.status }}">
+                                {{ intf.status|upper }}
+                            </td>
+                            <td>{{ intf.vlan }}</td>
+                            <td>{{ intf.duplex }}</td>
+                            <td>{{ intf.speed }}</td>
+                            <td>
+                                <button class="btn-edit" onclick="openEditModal('{{ intf.name }}')">
+                                    <i class="fas fa-edit"></i> Редактировать
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>Редактирование интерфейса <span id="modalInterfaceName"></span></h2>
+            
+            <form id="interfaceForm">
+                <div class="form-group">
+                    <label for="description">Описание:</label>
+                    <input type="text" id="description" name="description">
+                </div>
+                
+                <div class="form-group">
+                    <label for="status">Статус:</label>
+                    <select id="status" name="status">
+                        <option value="up">Up</option>
+                        <option value="down">Down</option>
+                        <option value="disabled">Disabled</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="vlan">VLAN:</label>
+                    <input type="number" id="vlan" name="vlan" min="1" max="4094">
+                </div>
+                
+                <div class="form-group">
+                    <label for="duplex">Дуплекс:</label>
+                    <select id="duplex" name="duplex">
+                        <option value="auto">Auto</option>
+                        <option value="full">Full</option>
+                        <option value="half">Half</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="speed">Скорость:</label>
+                    <select id="speed" name="speed">
+                        <option value="auto">Auto</option>
+                        <option value="10">10 Mbps</option>
+                        <option value="100">100 Mbps</option>
+                        <option value="1000">1 Gbps</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-cancel" onclick="closeModal()">Отмена</button>
+                    <button type="submit" class="btn btn-save">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- В templates/interfaces.html -->
+    <script>
+        function updateInterfaceRow(data) {
+    const rows = document.querySelectorAll('.interface-table tbody tr');
+    for (const row of rows) {
+        if (row.cells[0].textContent === data.interface_name) {
+            // Обновляем ячейки
+            row.cells[1].textContent = data.description;
+            
+            // Обновляем статус (и класс)
+            const statusCell = row.cells[2];
+            statusCell.textContent = data.status.toUpperCase();
+            statusCell.className = 'status-' + data.status;
+            
+            row.cells[3].textContent = data.vlan;
+            row.cells[4].textContent = data.duplex;
+            
+            // Форматируем скорость в зависимости от значения
+            let speedText = data.speed;
+            if (data.speed !== 'auto') {
+                speedText += ' Mbps';
+                // Для Huawei гигабитных интерфейсов
+                if (data.speed === '1000' && 
+                    data.interface_name.includes('GigabitEthernet')) {
+                    speedText = '1 Gbps';
+                }
+            }
+            row.cells[5].textContent = speedText;
+            
+            break;
+        }
+    }
+}
+
+        // Функция закрытия модального окна
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+    
+        // Обработчик клика вне модального окна
+        window.onclick = function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    
+        // Открытие модального окна с текущими значениями интерфейса
+        function openEditModal(interfaceName) {
+            const modal = document.getElementById('editModal');
+            document.getElementById('modalInterfaceName').textContent = interfaceName;
+            
+            // Находим интерфейс в таблице
+            const interface = findInterfaceByName(interfaceName);
+            
+            if (interface) {
+                // Заполняем форму текущими значениями
+                document.getElementById('description').value = interface.description || '';
+                document.getElementById('status').value = interface.status || 'up';
+                document.getElementById('vlan').value = interface.vlan || 1;
+                document.getElementById('duplex').value = interface.duplex || 'auto';
+                document.getElementById('speed').value = interface.speed.split(' ')[0] || 'auto';
+            }
+            
+            modal.style.display = 'block';
+        }
+    
+        // Находим интерфейс по имени (из таблицы)
+        function findInterfaceByName(name) {
+            const rows = document.querySelectorAll('.interface-table tbody tr');
+            for (const row of rows) {
+                if (row.cells[0].textContent === name) {
+                    return {
+                        name: name,
+                        description: row.cells[1].textContent,
+                        status: row.cells[2].textContent.toLowerCase().trim(),
+                        vlan: parseInt(row.cells[3].textContent),
+                        duplex: row.cells[4].textContent.toLowerCase(),
+                        speed: row.cells[5].textContent
+                    };
+                }
+            }
+            return null;
+        }
+    
+        // Обработка отправки формы
+        document.getElementById('interfaceForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                interface_name: document.getElementById('modalInterfaceName').textContent,
+                description: document.getElementById('description').value,
+                status: document.getElementById('status').value,
+                vlan: document.getElementById('vlan').value,
+                duplex: document.getElementById('duplex').value,
+                speed: document.getElementById('speed').value
+            };
+    
+            // Показываем индикатор загрузки
+            const submitBtn = document.querySelector('#interfaceForm .btn-save');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+    
+            // Отправляем данные на сервер
+            fetch('/update-interface', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Ошибка сети');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Обновляем строку в таблице
+                    updateInterfaceRow(formData);
+                    closeModal();
+                } else {
+                    throw new Error(data.message || 'Неизвестная ошибка сервера');
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Ошибка при сохранении: ' + error.message);
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            });
+        });
+    
+        // Обновляем строку в таблице
+        function updateInterfaceRow(data) {
+            const rows = document.querySelectorAll('.interface-table tbody tr');
+            for (const row of rows) {
+                if (row.cells[0].textContent === data.interface_name) {
+                    // Обновляем ячейки
+                    row.cells[1].textContent = data.description;
+                    
+                    // Обновляем статус (и класс)
+                    const statusCell = row.cells[2];
+                    statusCell.textContent = data.status.toUpperCase();
+                    statusCell.className = 'status-' + data.status;
+                    
+                    row.cells[3].textContent = data.vlan;
+                    row.cells[4].textContent = data.duplex;
+                    row.cells[5].textContent = data.speed + (data.speed !== 'auto' ? ' Mbps' : '');
+                    break;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+================================================================================
+ФАЙЛ: C:\Users\yatma\Documents\Daytona-main + Huawei\templates\login.html
+РАЗМЕР: 5821 bytes
+ДАТА ИЗМЕНЕНИЯ: 04/08/2025 19:03:35
+================================================================================
+
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Подключение к устройству</title>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --error: #ef233c;
+            --success: #2ecc71;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray: #6c757d;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .login-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .login-card.loading {
+            opacity: 0.8;
+        }
+        
+        h2 {
+            color: var(--dark);
+            margin-bottom: 30px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--dark);
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background-color: #3a56d4;
+        }
+        
+        button:disabled {
+            background-color: var(--gray);
+            cursor: not-allowed;
+        }
+        
+        /* Стили для загрузчика */
+        .loader-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            border-radius: 12px;
+        }
+        
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid rgba(67, 97, 238, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card" id="loginCard">
+        <div class="loader-container" id="loader">
+            <div class="loader"></div>
+        </div>
+        
+        <h2>Подключение к сетевому устройству</h2>
+        
+        <form id="authForm" method="POST" action="/">
+            <div class="form-group">
+                <label for="username">Логин:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Пароль:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="ip_address">IP-адрес устройства:</label>
+                <input type="text" id="ip_address" name="ip_address" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="device_type">Тип устройства:</label>
+                <select id="device_type" name="device_type" required>
+                    <option value="">-- Выберите тип --</option>
+                    <option value="Cisco">Cisco</option>
+                    <option value="Huawei">Huawei</option>
+                    <option value="Eltex">Eltex</option>
+                </select>
+            </div>
+            
+            <button type="submit" id="submitBtn">Подключиться</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('authForm').addEventListener('submit', function(e) {
+            const form = this;
+            const loader = document.getElementById('loader');
+            const loginCard = document.getElementById('loginCard');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            // Показываем загрузчик
+            loader.style.display = 'flex';
+            loginCard.classList.add('loading');
+            submitBtn.disabled = true;
+            
+            // Продолжаем стандартную отправку формы
+            // (все перенаправления и обработка ошибок сохраняются)
+        });
+    </script>
+</body>
+</html>
+
+
+================================================================================
+ФАЙЛ: C:\Users\yatma\Documents\Daytona-main + Huawei\templates\success.html
+РАЗМЕР: 2013 bytes
+ДАТА ИЗМЕНЕНИЯ: 04/08/2025 19:03:35
+================================================================================
+
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Успешное подключение</title>
+    <style>
+        /* Общие стили как в login.html */
+        body {
+            background-color: #f5f7fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .success-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .success-icon {
+            color: #2ecc71;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #212529;
+            margin-bottom: 20px;
+        }
+        
+        .success-message {
+            background: #f0fff4;
+            border-left: 4px solid #2ecc71;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        
+        .back-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #4361ee;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        
+        .back-btn:hover {
+            background-color: #3a56d4;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-card">
+        <div class="success-icon">✓</div>
+        <h1>Подключение установлено</h1>
+        <div class="success-message">{{ success_message }}</div>
+        <a href="/" class="back-btn">Вернуться</a>
+    </div>
+</body>
+</html>
+
+
+================================================================================
+ФАЙЛ: C:\Users\yatma\Documents\Daytona-main + Huawei\app.py
+РАЗМЕР: 5897 bytes
+ДАТА ИЗМЕНЕНИЯ: 04/08/2025 20:02:59
+================================================================================
+
+
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify
+from device_connector import connect_and_collect_data
+import json
+from datetime import datetime
+from device_connector import update_interface_on_device
+from flask import Flask, render_template, session, redirect, url_for
+
+app = Flask(__name__, static_url_path='/static')
+app.secret_key = 'your-secret-key'  # Ваш секретный ключ
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 час
+
+
+interfaces_store = [
+    {
+        'name': 'GigabitEthernet0/1',
+        'description': 'Сервер',
+        'status': 'up',
+        'vlan': 10,
+        'duplex': 'full',
+        'speed': '1 Gbps'
+    },
+    {
+        'name': 'GigabitEthernet0/2',
+        'description': 'Резерв',
+        'status': 'down',
+        'vlan': 20,
+        'duplex': 'auto',
+        'speed': '100 Mbps'
+    }
+]
+
+@app.route('/', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        device_data = {
+            'username': request.form['username'],
+            'password': request.form['password'],
+            'ip_address': request.form['ip_address'],
+            'device_type': request.form['device_type'],
+            'timestamp': datetime.now().isoformat()  # Метаданные
+        }
+
+        # Сохраняем в сессии перед подключением (для индикатора загрузки)
+        session['device_data'] = device_data
+        session.pop('device_status', None)  # Очищаем предыдущие данные
+        
+        return redirect(url_for('connect_device'))  # Отдельный маршрут для подключения
+    
+    return render_template('login.html')
+
+@app.route('/connect-device')
+def connect_device():
+    if 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    # Получаем сохраненные данные
+    device_data = session['device_data']
+    
+    # Подключаемся и собираем ВСЕ данные
+    result = connect_and_collect_data(device_data)
+    
+    if result['status'] == 'error':
+        return render_template('error.html', 
+                             error_message=result['message'],
+                             device_data=device_data)
+    
+    # Сохраняем ВСЕ данные в сессии
+    session['device_status'] = json.dumps(result['data'])  # Сериализуем
+    session['last_update'] = datetime.now().isoformat()
+    
+    return redirect(url_for('device_status'))
+
+@app.route('/device-status')
+def device_status():
+    if 'device_status' not in session or 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    return render_template(
+        'device_status.html',
+        device_status=json.loads(session['device_status']),  # Десериализуем
+        device_data=session['device_data'],
+        last_update=session['last_update']
+    )
+
+
+@app.route('/interfaces')
+def interfaces():
+    if 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    device_type = session['device_data'].get('device_type', 'Cisco')
+    
+    # Используем данные из сессии, если они есть
+    if 'device_status' in session:
+        device_status = json.loads(session['device_status'])
+        if 'interfaces' in device_status:
+            return render_template('interfaces.html', interfaces=device_status['interfaces'])
+    
+    # Иначе генерируем тестовые данные
+    if device_type.lower() == 'huawei':
+        interfaces_data = [
+            {
+                'name': 'GigabitEthernet0/0/1',
+                'description': 'Uplink to core',
+                'status': 'up',
+                'vlan': 100,
+                'duplex': 'full',
+                'speed': '1000 Mbps'
+            },
+            {
+                'name': 'GigabitEthernet0/0/2',
+                'description': 'Access port',
+                'status': 'down',
+                'vlan': 200,
+                'duplex': 'auto',
+                'speed': '100 Mbps'
+            }
+        ]
+    else:
+        interfaces_data = [
+            {
+                'name': 'GigabitEthernet0/1',
+                'description': 'Сервер',
+                'status': 'up',
+                'vlan': 10,
+                'duplex': 'full',
+                'speed': '1 Gbps'
+            },
+            {
+                'name': 'GigabitEthernet0/2',
+                'description': 'Резерв',
+                'status': 'down',
+                'vlan': 20,
+                'duplex': 'auto',
+                'speed': '100 Mbps'
+            }
+        ]
+    
+    return render_template('interfaces.html', interfaces=interfaces_data)
+
+    
+@app.route('/update-interface', methods=['POST'])
+def update_interface():
+    if 'device_data' not in session:
+        return jsonify({'success': False, 'message': 'Требуется авторизация'}), 401
+    
+    try:
+        data = request.get_json()
+        device_data = session['device_data']
+        
+        # Вызываем функцию для обновления интерфейса на устройстве
+        success = update_interface_on_device(device_data, data)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Интерфейс успешно обновлен'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Не удалось обновить интерфейс на устройстве'
+            })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Ошибка: {str(e)}'
+        }), 500
+        
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+================================================================================
+ФАЙЛ: C:\Users\yatma\Documents\Daytona-main + Huawei\device_connector.py
+РАЗМЕР: 6899 bytes
+ДАТА ИЗМЕНЕНИЯ: 04/08/2025 20:18:04
+================================================================================
+
+
+import random
+import time
+from datetime import datetime
+
+# Тестовые учетные данные (для имитации успешной аутентификации)
+TEST_CREDENTIALS = {
+    "admin": "cisco123",
+    "user": "password123",
+    "test": "test123"
+}
+
+def connect_and_collect_data(device_data):
+    """Основная функция подключения"""
+    try:
+        device_type = device_data.get('device_type', 'Cisco').lower()
+        
+        # Проверка тестовых учетных данных
+        if TEST_CREDENTIALS.get(device_data['username']) != device_data['password']:
+            return {
+                'status': 'error',
+                'message': 'Ошибка аутентификации: неверный логин/пароль'
+            }
+        
+        # Возвращаем данные в зависимости от типа устройства
+        if device_type == 'huawei':
+            return generate_huawei_response(device_data)
+        else:
+            return generate_cisco_response(device_data)
+            
+    except Exception as e:
+        return {
+            'status': 'error',
+            'message': f'Ошибка подключения: {str(e)}'
+        }
+    
+def generate_cisco_response(device_data):
+    """Генерация тестовых данных для Cisco"""
+    ip = device_data.get('ip_address', '192.168.1.1')
+    return {
+        'status': 'success',
+        'data': {
+            'monitoring': {
+                'cpu_load': f"{random.randint(5, 45)}%",
+                'memory_usage': f"{random.randint(200, 500)}/1024 MB ({random.randint(20, 50)}%)",
+                'temperature': f"{random.randint(35, 55)}°C"
+            },
+            'configuration': {
+                'hostname': f"SW-{random.randint(100, 999)}",
+                'gateway': f"{'.'.join(ip.split('.')[:3])}.1",
+                'software_version': "15.2(4)M7",
+                'uptime': f"{random.randint(1, 30)} дней"
+            },
+            'interfaces': generate_cisco_interfaces(ip),
+            'connection_time': f"{random.uniform(0.8, 2.5):.2f} сек"
+        }
+    }
+
+def generate_cisco_interfaces(base_ip):
+    """Генерация тестовых интерфейсов Cisco"""
+    ip_parts = base_ip.split('.')
+    return [
+        {
+            'name': 'GigabitEthernet0/1',
+            'description': 'Сервер',
+            'status': 'up',
+            'vlan': 10,
+            'duplex': 'full',
+            'speed': '1000'
+        },
+        {
+            'name': 'GigabitEthernet0/2',
+            'description': 'Резерв',
+            'status': 'down',
+            'vlan': 20,
+            'duplex': 'auto',
+            'speed': '100'
+        }
+    ]
+
+def generate_huawei_response(device_data):
+    """Генерация тестовых данных для Huawei"""
+    ip = device_data.get('ip_address', '192.168.1.1')
+    return {
+        'status': 'success',
+        'data': {
+            'monitoring': {
+                'cpu_load': f"{random.randint(5, 30)}%",
+                'memory_usage': f"{random.randint(300, 800)}/2048 MB ({random.randint(15, 40)}%)",
+                'temperature': f"{random.randint(30, 45)}°C"
+            },
+            'configuration': {
+                'hostname': f"HW-{random.randint(100, 999)}",
+                'gateway': f"{'.'.join(ip.split('.')[:3])}.254",
+                'software_version': f"V200R0{random.randint(1, 9)}C00SPC{random.randint(1, 5)}00",
+                'uptime': f"{random.randint(1, 60)} дней"
+            },
+            'interfaces': generate_huawei_interfaces(ip),
+            'connection_time': f"{random.uniform(0.5, 1.5):.2f} сек"
+        }
+    }
+
+def generate_huawei_interfaces(base_ip):
+    """Генерация интерфейсов Huawei"""
+    return [
+        {
+            'name': 'GigabitEthernet0/0/1',
+            'description': 'Uplink to core',
+            'status': 'up',
+            'vlan': random.randint(1, 100),
+            'duplex': 'full',
+            'speed': '1000'
+        },
+        {
+            'name': 'GigabitEthernet0/0/2',
+            'description': 'Access port',
+            'status': random.choice(['up', 'down']),
+            'vlan': random.randint(101, 200),
+            'duplex': 'auto',
+            'speed': '100'
+        }
+    ]
+
+
+def generate_successful_response(device_data):
+    """Генерация успешного ответа с тестовыми данными"""
+    ip = device_data.get('ip_address', '192.168.1.1')
+    return {
+        'status': 'success',
+        'data': {
+            'monitoring': {
+                'cpu_load': f"{random.randint(5, 45)}%",
+                'memory_usage': f"{random.randint(200, 500)}/1024 MB ({random.randint(20, 50)}%)",
+                'temperature': f"{random.randint(35, 55)}°C"
+            },
+            'configuration': {
+                'hostname': f"SW-{random.randint(100, 999)}",
+                'gateway': f"{'.'.join(ip.split('.')[:3])}.1",
+                'software_version': "15.2(4)M7",
+                'uptime': f"{random.randint(1, 30)} дней"
+            },
+            'interfaces': generate_interfaces(ip),
+            'connection_time': f"{random.uniform(0.8, 2.5):.2f} сек"
+        }
+    }
+
+def generate_interfaces(base_ip):
+    """Генерация тестовых интерфейсов"""
+    ip_parts = base_ip.split('.')
+    return [
+        {
+            'name': 'GigabitEthernet0/0',
+            'ip': base_ip,
+            'status': 'up',
+            'protocol': 'up'
+        },
+        {
+            'name': 'GigabitEthernet0/1',
+            'ip': f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.{random.randint(2, 254)}",
+            'status': random.choice(['up', 'down']),
+            'protocol': random.choice(['up', 'down'])
+        }
+    ]
+
+# В device_connector.py
+def update_interface_on_device(device_data, interface_data):
+    """Функция обновления интерфейса"""
+    device_type = device_data.get('device_type', 'Cisco').lower()
+    print(f"\nКоманды для {device_type.upper()}:")
+    
+    if device_type == 'huawei':
+        print(f"interface {interface_data['interface_name']}")
+        print(f"description {interface_data['description']}")
+        print(f"port default vlan {interface_data['vlan']}")
+        print("undo shutdown" if interface_data['status'] == 'up' else "shutdown")
+    else:  # Cisco
+        print(f"interface {interface_data['interface_name']}")
+        print(f"description {interface_data['description']}")
+        print(f"switchport access vlan {interface_data['vlan']}")
+        print("no shutdown" if interface_data['status'] == 'up' else "shutdown")
+    
+    return True
+
+
+def get_device_type(device_type):
+    """Фиктивная функция для тестов"""
+    return "cisco_ios"

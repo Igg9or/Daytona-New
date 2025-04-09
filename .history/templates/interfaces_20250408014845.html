@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Интерфейсы устройства</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item">
+                <a href="/device-status">Обзор системы</a>
+            </li>
+            <li class="menu-item active">
+                <a href="/interfaces">Интерфейсы</a>
+            </li>
+            <li class="menu-item">
+                <a href="#">Конфигурация</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header>
+                <h1>Интерфейсы устройства</h1>
+            </header>
+
+            <!-- Информация об устройстве -->
+            <div class="card">
+                <h2>Информация об устройстве</h2>
+                <div class="grid">
+                    <div class="status-card">
+                        <h3>Модель устройства</h3>
+                        <div class="status-value">Cisco WS-C2960X-48TS-L</div>
+                    </div>
+                    <div class="status-card">
+                        <h3>Версия ПО</h3>
+                        <div class="status-value">15.2(4)M7</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Таблица интерфейсов -->
+            <div class="card">
+                <h2>Состояние интерфейсов</h2>
+                <table class="interface-table">
+                    <thead>
+                        <tr>
+                            <th>Порт</th>
+                            <th>Описание</th>
+                            <th>Статус</th>
+                            <th>VLAN</th>
+                            <th>Дуплекс</th>
+                            <th>Скорость</th>
+                            <th>Тип</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GigabitEthernet0/1</td>
+                            <td>Сервер</td>
+                            <td class="status-up">Подключено</td>
+                            <td>10</td>
+                            <td>Full</td>
+                            <td>1 Gbps</td>
+                            <td>1000BASE-T</td>
+                        </tr>
+                        <tr>
+                            <td>GigabitEthernet0/2</td>
+                            <td>Резерв</td>
+                            <td class="status-down">Не подключено</td>
+                            <td>20</td>
+                            <td>Auto</td>
+                            <td>100 Mbps</td>
+                            <td>100BASE-TX</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

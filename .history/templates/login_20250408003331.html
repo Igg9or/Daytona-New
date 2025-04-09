@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Авторизация</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .login-form { max-width: 400px; margin: 0 auto; }
+        input, select { width: 100%; padding: 8px; margin: 5px 0; }
+        button { background: #4CAF50; color: white; padding: 10px; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="login-form">
+        <h2>Подключение к устройству</h2>
+        <form method="POST" action="/">
+            <label>Логин:</label>
+            <input type="text" name="username" required>
+
+            <label>Пароль:</label>
+            <input type="password" name="password" required>
+
+            <label>IP-адрес:</label>
+            <input type="text" name="ip_address" required>
+
+            <label>Тип устройства:</label>
+            <select name="device_type" required>
+                <option value="">-- Выберите --</option>
+                <option value="Cisco">Cisco</option>
+                <option value="Huawei">Huawei</option>
+                <option value="Eltex">Eltex</option>
+            </select>
+
+            <button type="submit">Войти</button>
+        </form>
+    </div>
+</body>
+</html>

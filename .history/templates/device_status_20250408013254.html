@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <!-- Стили остаются как в предыдущем примере -->
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1>{{ device_data['device_type'] }} - {{ device_status.configuration.hostname }}</h1>
+                <div>
+                    <span class="value">{{ device_data['ip_address'] }}</span>
+                    <span> | Версия: {{ device_status.configuration.software_version }}</span>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Мониторинг состояния -->
+        <div class="card">
+            <h2>Состояние системы</h2>
+            <div class="status-grid">
+                <!-- CPU -->
+                <div class="status-item {% if device_status.monitoring.cpu_load|replace('%','')|int > 70 %}warning{% endif %}">
+                    <h3>Загрузка CPU</h3>
+                    <p class="value">{{ device_status.monitoring.cpu_load }}</p>
+                    <p>5-секундный показатель</p>
+                </div>
+                
+                <!-- Память -->
+                <div class="status-item {% if device_status.monitoring.memory_usage.split('/')[0]|int > 700 %}warning{% endif %}">
+                    <h3>Использование памяти</h3>
+                    <p class="value">{{ device_status.monitoring.memory_usage }}</p>
+                    <p>Использовано/Всего</p>
+                </div>
+                
+                <!-- Температура -->
+                <div class="status-item {% if device_status.monitoring.temperature|replace('°C','')|int > 60 %}critical{% endif %}">
+                    <h3>Температура</h3>
+                    <p class="value">{{ device_status.monitoring.temperature }}</p>
+                    <p>Системная</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Конфигурация -->
+        <div class="card">
+            <h2>Конфигурация</h2>
+            <div class="config-grid">
+                <div class="config-item">
+                    <h3>Шлюз по умолчанию</h3>
+                    <p class="value">{{ device_status.configuration.gateway }}</p>
+                </div>
+                <!-- Другие параметры конфигурации -->
+            </div>
+        </div>
+        
+        <!-- Интерфейсы -->
+        <div class="card">
+            <h2>Состояние интерфейсов</h2>
+            <div class="interface-grid">
+                {% for intf in device_status.interfaces %}
+                <div class="interface-item {{ intf.status }}">
+                    <h3>{{ intf.name }}</h3>
+                    <p>IP: {{ intf.ip }}</p>
+                    <p>Status: <strong>{{ intf.status|upper }}</strong></p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Авторизация</title>
+    <style>
+        /* Все предыдущие стили сохраняются */
+        .loader {
+            display: none;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #form-container { transition: opacity 0.3s; }
+        .loading #form-container { opacity: 0.5; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="form-container">
+            <div class="login-form">
+                <h2>Подключение к устройству</h2>
+                <form id="authForm" method="POST" action="/">
+                    <!-- Поля формы остаются без изменений -->
+                    <label>Логин:</label>
+                    <input type="text" name="username" required>
+
+                    <label>Пароль:</label>
+                    <input type="password" name="password" required>
+
+                    <label>IP-адрес:</label>
+                    <input type="text" name="ip_address" required>
+
+                    <label>Тип устройства:</label>
+                    <select name="device_type" required>
+                        <option value="">-- Выберите --</option>
+                        <option value="Cisco">Cisco</option>
+                        <option value="Huawei">Huawei</option>
+                        <option value="Eltex">Eltex</option>
+                    </select>
+
+                    <button type="submit" id="submitBtn">Войти</button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="loader" id="loader"></div>
+    </div>
+
+    <script>
+        document.getElementById('authForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Показываем загрузчик
+            document.getElementById('loader').style.display = 'block';
+            document.body.classList.add('loading');
+            
+            try {
+                // Вариант 1: Классическая отправка формы
+                // (сохраняет предыдущий функционал с перенаправлениями)
+                e.target.submit();
+                
+                // Вариант 2: AJAX-запрос (раскомментировать если нужно)
+                /*
+                const formData = new FormData(this);
+                const response = await fetch('/api/connect', {
+                    method: 'POST',
+                    body: JSON.stringify(Object.fromEntries(formData)),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                if (result.status === 'success') {
+                    window.location.href = '/success';
+                } else {
+                    window.location.href = '/error';
+                }
+                */
+            } catch (error) {
+                console.error('Ошибка:', error);
+            } finally {
+                document.getElementById('loader').style.display = 'none';
+                document.body.classList.remove('loading');
+            }
+        });
+    </script>
+</body>
+</html>

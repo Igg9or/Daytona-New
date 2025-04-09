@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Состояние устройства - {{ device_data.device_type }}</title>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --gray: #95a5a6;
+            --sidebar-width: 250px;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Сайдбар */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--dark);
+            color: white;
+            padding: 20px 0;
+            height: 100vh;
+            position: fixed;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sidebar-menu {
+            list-style: none;
+        }
+        
+        .menu-item {
+            padding: 12px 20px;
+            transition: all 0.3s;
+        }
+        
+        .menu-item:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        
+        .menu-item a {
+            color: white;
+            text-decoration: none;
+            display: block;
+        }
+        
+        .menu-item.active {
+            background-color: var(--primary);
+        }
+        
+        /* Основное содержимое */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 20px;
+        }
+        
+        /* Остальные стили из предыдущей версии */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* ... (сохраняем все предыдущие стили) ... */
+        
+        /* Стили для таблицы интерфейсов */
+        .interface-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .interface-table th {
+            background-color: var(--dark);
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+        }
+        
+        .interface-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .interface-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .status-up {
+            color: var(--success);
+            font-weight: bold;
+        }
+        
+        .status-down {
+            color: var(--danger);
+            font-weight: bold;
+        }
+        
+        .status-disabled {
+            color: var(--gray);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item">
+                <a href="/device-status">Обзор системы</a>
+            </li>
+            <li class="menu-item active">
+                <a href="/interfaces">Интерфейсы</a>
+            </li>
+            <li class="menu-item">
+                <a href="#">Конфигурация</a>
+            </li>
+            <li class="menu-item">
+                <a href="#">Логи</a>
+            </li>
+            <li class="menu-item">
+                <a href="#">Настройки</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header>
+                <div class="header-content">
+                    <div>
+                        <h1>{{ device_status.configuration.hostname }}</h1>
+                        <p>{{ device_data.device_type }} @ {{ device_data.ip_address }}</p>
+                    </div>
+                    <div>
+                        <a href="/" class="btn">На главную</a>
+                        <a href="/connect-device" class="btn btn-refresh">Обновить</a>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Информация об устройстве -->
+            <div class="card">
+                <h2>Информация об устройстве</h2>
+                <div class="grid">
+                    <div class="status-card">
+                        <h3>Модель устройства</h3>
+                        <div class="status-value">Cisco WS-C2960X-48TS-L</div>
+                    </div>
+                    <div class="status-card">
+                        <h3>Версия ПО</h3>
+                        <div class="status-value">{{ device_status.configuration.software_version }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Таблица интерфейсов -->
+            <div class="card">
+                <h2>Информация об интерфейсах</h2>
+                <table class="interface-table">
+                    <thead>
+                        <tr>
+                            <th>Порт</th>
+                            <th>Описание</th>
+                            <th>Статус</th>
+                            <th>VLAN</th>
+                            <th>Дуплекс</th>
+                            <th>Скорость</th>
+                            <th>Тип</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Тестовые данные интерфейсов -->
+                        <tr>
+                            <td>GigabitEthernet0/1</td>
+                            <td>Подключение к серверу</td>
+                            <td class="status-up">Подключено</td>
+                            <td>10</td>
+                            <td>Full</td>
+                            <td>1 Gbps</td>
+                            <td>1000BASE-T</td>
+                        </tr>
+                        <tr>
+                            <td>GigabitEthernet0/2</td>
+                            <td>Резервное подключение</td>
+                            <td class="status-down">Не подключено</td>
+                            <td>20</td>
+                            <td>Auto</td>
+                            <td>100 Mbps</td>
+                            <td>100BASE-TX</td>
+                        </tr>
+                        <tr>
+                            <td>GigabitEthernet0/3</td>
+                            <td>Офис 101</td>
+                            <td class="status-up">Подключено</td>
+                            <td>30</td>
+                            <td>Full</td>
+                            <td>1 Gbps</td>
+                            <td>1000BASE-T</td>
+                        </tr>
+                        <tr>
+                            <td>GigabitEthernet0/4</td>
+                            <td>Отключен</td>
+                            <td class="status-disabled">Отключено</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>1000BASE-T</td>
+                        </tr>
+                        <tr>
+                            <td>FastEthernet0/1</td>
+                            <td>Принтер</td>
+                            <td class="status-up">Подключено</td>
+                            <td>40</td>
+                            <td>Half</td>
+                            <td>10 Mbps</td>
+                            <td>10BASE-T</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="last-update">
+                Последнее обновление: {{ last_update }}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Состояние устройства - {{ device_data.device_type }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item active">
+                <a href="/device-status">Обзор системы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interfaces">Интерфейсы</a>
+            </li>
+            <li class="menu-item">
+                <a href="#">Конфигурация</a>
+            </li>
+            <li class="menu-item">
+                <a href="#">Логи</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header>
+                <div class="header-content">
+                    <div>
+                        <h1>{{ device_status.configuration.hostname }}</h1>
+                        <p>{{ device_data.device_type }} @ {{ device_data.ip_address }}</p>
+                    </div>
+                    <div>
+                        <a href="/" class="btn">На главную</a>
+                        <a href="/connect-device" class="btn btn-refresh">Обновить</a>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Мониторинг состояния -->
+            <div class="card">
+                <h2>Мониторинг системы</h2>
+                <div class="grid">
+                    <div class="status-card {% if device_status.monitoring.cpu_load|replace('%','')|replace('N/A','0')|int > 70 %}warning{% endif %}">
+                        <h3>Загрузка CPU</h3>
+                        <div class="status-value">{{ device_status.monitoring.cpu_load }}</div>
+                        <div class="status-label">5-секундная нагрузка</div>
+                    </div>
+                    
+                    <div class="status-card {% if 'N/A' not in device_status.monitoring.memory_usage and device_status.monitoring.memory_usage.split('(')[1]|replace('%)','')|float > 80 %}warning{% endif %}">
+                        <h3>Использование памяти</h3>
+                        <div class="status-value">{{ device_status.monitoring.memory_usage.split('(')[0] }}</div>
+                        <div class="status-label">{{ device_status.monitoring.memory_usage.split('(')[1] if '(' in device_status.monitoring.memory_usage else '' }}</div>
+                    </div>
+                    
+                    <div class="status-card {% if 'N/A' not in device_status.monitoring.temperature and device_status.monitoring.temperature|replace('°C','')|int > 60 %}critical{% endif %}">
+                        <h3>Температура</h3>
+                        <div class="status-value">{{ device_status.monitoring.temperature }}</div>
+                        <div class="status-label">Системная температура</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Основная информация -->
+            <div class="card">
+                <h2>Основная информация</h2>
+                <div class="grid">
+                    <div class="status-card">
+                        <h3>Версия ПО</h3>
+                        <div class="status-value">{{ device_status.configuration.software_version }}</div>
+                    </div>
+                    <div class="status-card">
+                        <h3>Шлюз по умолчанию</h3>
+                        <div class="status-value">{{ device_status.configuration.gateway }}</div>
+                    </div>
+                    <div class="status-card">
+                        <h3>Время работы</h3>
+                        <div class="status-value">{{ device_status.configuration.uptime }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="last-update">
+                Последнее обновление: {{ last_update }}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
