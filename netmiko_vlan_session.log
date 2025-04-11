@@ -1,0 +1,74 @@
+
+3560-3#
+3560-3#terminal width 511
+3560-3#terminal length 0
+3560-3#
+3560-3#
+3560-3#
+3560-3#show vlan brief
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Fa0/2, Fa0/4, Fa0/5, Fa0/6, Fa0/7, Fa0/9, Fa0/14, Fa0/19, Fa0/21, Fa0/22, Fa0/23, Fa0/24, Gi0/1, Gi0/2
+2    VLAN0002                         active    
+3    VLAN0003                         active    
+4    VLAN0004                         active    
+5    VLAN0005                         active    
+6    VLAN0006                         active    
+7    VLAN0007                         active    
+8    VLAN0008                         active    
+9    VLAN0009                         active    
+10   VLAN0010                         active    
+11   VLAN0011                         active    
+12   VLAN0012                         active    
+13   VLAN0013                         active    
+14   VLAN0014                         active    
+15   VLAN0015                         active    
+16   VLAN0016                         active    
+17   VLAN0017                         active    
+18   VLAN0018                         active    
+19   VLAN0019                         active    
+20   Internet                         active    
+21   VLAN0021                         active    
+22   VLAN0022                         active    
+23   VLAN0023                         active    
+24   VLAN0024                         active    
+25   VADIM_TEST                       active    
+26   VLAN0026                         active    
+27   VLAN0027                         active    
+28   VLAN0028                         active    
+29   VLAN0029                         active    
+30   VLAN0030                         active    
+31   Security_WAN2                    active    
+32   VLAN0032                         active    
+33   VLAN0033                         active    
+34   VLAN0034                         active    
+35   VLAN0035                         active    
+36   VLAN0036                         active    
+37   VLAN0037                         active    
+38   VLAN0038                         active    
+39   VLAN0039                         active    
+40   CCNAS_BR_ISP_CONN                active    
+41   VLAN0041                         active    
+42   VLAN0042                         active    
+43   VLAN0043                         active    
+44   VLAN0044                         active    
+45   VLAN0045                         active    
+46   VLAN0046                         active    
+47   VLAN0047                         active    
+48   VLAN0048                         active    
+49   VLAN0049                         active    
+53   VLAN0053                         active    
+666  MANAGEMENT                       active    Fa0/8, Fa0/10, Fa0/11, Fa0/12, Fa0/13, Fa0/15, Fa0/17, Fa0/18, Fa0/20
+777  VLAN0777                         active    Fa0/16
+1002 fddi-default                     act/unsup 
+1003 token-ring-default               act/unsup 
+1004 fddinet-default                  act/unsup 
+1005 trnet-default                    act/unsup 
+3560-3#
+3560-3#show ip interface brief | include Vlan
+Vlan1                  unassigned      YES NVRAM  administratively down down    
+Vlan666                172.23.4.57     YES NVRAM  up                    up      
+Vlan777                192.168.2.1     YES NVRAM  up                    down    
+3560-3#
+3560-3#exit

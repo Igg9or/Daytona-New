@@ -137,9 +137,6 @@
             <li class="menu-item active">
                 <a href="/vlan-info">Информация о VLAN</a>
             </li>
-            <li class="menu-item">
-                <a href="/vlan-details">Данные о конкретном VLAN</a>
-            </li>
         </ul>
     </div>
 
@@ -200,16 +197,9 @@
                                 {{ vlan.port_mode }}
                             </td>
                             <td>{{ vlan.access_vlan or '-' }}</td>
-                            <td class="ports-cell">
+                            <td>
                                 {% if vlan.ports %}
-                                    <div class="ports-list collapsed" id="ports-{{ loop.index }}">
-                                        {% for port in vlan.ports.split(',') %}
-                                            <span class="port-badge">{{ port.strip() }}</span>
-                                        {% endfor %}
-                                    </div>
-                                    <small class="show-more" onclick="togglePorts('ports-{{ loop.index }}', this)">
-                                        Показать все ▼
-                                    </small>
+                                    {{ vlan.ports }}
                                 {% else %}
                                     -
                                 {% endif %}
@@ -223,17 +213,5 @@
             </div>
         </div>
     </div>
-    <script>
-        function togglePorts(portsId, button) {
-            const portsList = document.getElementById(portsId);
-            portsList.classList.toggle('collapsed');
-            
-            if (portsList.classList.contains('collapsed')) {
-                button.textContent = 'Показать все ▼';
-            } else {
-                button.textContent = 'Скрыть ▲';
-            }
-        }
-    </script>
 </body>
 </html>

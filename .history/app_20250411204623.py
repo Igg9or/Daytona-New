@@ -423,38 +423,23 @@ def get_vlan_info(device_data):
         return []
     
 def parse_cisco_vlan_info(vlan_output, svi_output):
-    """Парсинг информации о VLAN для Cisco устройств с портами"""
+    """Парсинг информации о VLAN для Cisco устройств"""
     vlans = []
-    port_info = {}  # Для хранения информации о портах
     
     # Парсим основной вывод VLAN
     for line in vlan_output.splitlines():
         if re.match(r'^\d+\s+\w+', line):
             parts = re.split(r'\s+', line.strip())
-            vlan_id = parts[0]
-            ports = ' '.join(parts[3:]) if len(parts) > 3 else ''
-            
             vlans.append({
-                'id': vlan_id,
+                'id': parts[0],
                 'name': parts[1],
                 'status': 'active' if parts[2].lower() == 'active' else 'inactive',
-                'port_mode': 'access',  # Будет уточнено ниже
-                'ports': ports,  # Добавляем порты
-                'access_vlan': vlan_id,
+                'port_mode': 'access',  # Будет обновлено ниже
+                'access_vlan': parts[0],
                 'allowed_vlans': None,
                 'mac_addresses': None,
                 'svi_ip': None
             })
-            
-            # Сохраняем порты для этого VLAN
-            port_info[vlan_id] = ports
-    
-    # Получаем дополнительную информацию о портах из show interfaces switchport
-    try:
-        switchport_output = connection.send_command('show interfaces switchport', delay_factor=2)
-        # Здесь можно добавить парсинг для определения режима порта (access/trunk)
-    except Exception as e:
-        app.logger.error(f"Ошибка получения информации о switchport: {str(e)}")
     
     # Парсим SVI интерфейсы
     svi_ips = {}
@@ -472,23 +457,20 @@ def parse_cisco_vlan_info(vlan_output, svi_output):
     return vlans
 
 def parse_huawei_vlan_info(vlan_output, svi_output):
-    """Парсинг информации о VLAN для Huawei устройств с портами"""
+    """Парсинг информации о VLAN для Huawei устройств"""
     vlans = []
     current_vlan = None
-    port_info = {}
     
     # Парсим основной вывод VLAN
     for line in vlan_output.splitlines():
         if line.startswith('VLAN ID:'):
             if current_vlan:
                 vlans.append(current_vlan)
-            vlan_id = line.split(':')[1].strip()
             current_vlan = {
-                'id': vlan_id,
+                'id': line.split(':')[1].strip(),
                 'name': '',
                 'status': 'active',
                 'port_mode': 'hybrid',
-                'ports': '',  # Будет заполнено ниже
                 'access_vlan': None,
                 'allowed_vlans': None,
                 'mac_addresses': None,
@@ -496,11 +478,6 @@ def parse_huawei_vlan_info(vlan_output, svi_output):
             }
         elif line.startswith('VLAN Name:'):
             current_vlan['name'] = line.split(':')[1].strip()
-        elif 'Untagged' in line or 'Tagged' in line:
-            # Это строка с информацией о портах
-            port_type = 'Untagged' if 'Untagged' in line else 'Tagged'
-            ports = line.split(':')[1].strip()
-            current_vlan['ports'] += f"{port_type}: {ports} "
     
     if current_vlan:
         vlans.append(current_vlan)
@@ -520,6 +497,71 @@ def parse_huawei_vlan_info(vlan_output, svi_output):
     
     return vlans
 
+
+def generate_cisco_vlan_test_data():
+    """Генерация тестовых данных VLAN для Cisco"""
+    return [
+        {
+            'id': '1',
+            'name': 'default',
+            'description': 'Default VLAN',
+            'status': 'active',
+            'port_mode': 'access',
+            'access_vlan': '1',
+            'allowed_vlans': None,
+            'mac_addresses': '00:1A:2B:3C:4D:5E',
+            'svi_ip': None
+        },
+        {
+            'id': '10',
+            'name': 'Management',
+            'description': 'Management VLAN',
+            'status': 'active',
+            'port_mode': 'access',
+            'access_vlan': '10',
+            'allowed_vlans': None,
+            'mac_addresses': '00:1A:2B:3C:4D:5F',
+            'svi_ip': '192.168.10.1'
+        },
+        {
+            'id': '20',
+            'name': 'Users',
+            'description': 'VLAN for users',
+            'status': 'active',
+            'port_mode': 'trunk',
+            'access_vlan': None,
+            'allowed_vlans': '10,20,30',
+            'mac_addresses': '00:1A:2B:3C:4D:60,00:1A:2B:3C:4D:61',
+            'svi_ip': '192.168.20.1'
+        }
+    ]
+
+def generate_huawei_vlan_test_data():
+    """Генерация тестовых данных VLAN для Huawei"""
+    return [
+        {
+            'id': '1',
+            'name': 'default',
+            'description': 'Default VLAN',
+            'status': 'active',
+            'port_mode': 'access',
+            'access_vlan': '1',
+            'allowed_vlans': None,
+            'mac_addresses': '00-1A-2B-3C-4D-5E',
+            'svi_ip': None
+        },
+        {
+            'id': '10',
+            'name': 'Management',
+            'description': 'Management VLAN',
+            'status': 'active',
+            'port_mode': 'hybrid',
+            'access_vlan': '10',
+            'allowed_vlans': '10,20',
+            'mac_addresses': '00-1A-2B-3C-4D-5F',
+            'svi_ip': '192.168.10.1'
+        }
+    ]
 
 @app.route('/create-interface', methods=['POST'])
 def create_interface():
@@ -557,235 +599,6 @@ def create_interface():
             'success': False,
             'message': f'Ошибка: {str(e)}'
         }), 500
-
-@app.route('/vlan-details')
-def vlan_details():
-    if 'device_data' not in session:
-        return redirect(url_for('login'))
-    
-    device_info = {
-        'model': session['device_data'].get('device_type', 'Unknown'),
-        'software_version': 'N/A',
-        'ip_address': session['device_data'].get('ip_address', 'Unknown')
-    }
-    
-    if 'device_status' in session:
-        device_status = json.loads(session['device_status'])
-        device_info['software_version'] = device_status.get('configuration', {}).get('software_version', 'N/A')
-    
-    vlans = get_vlan_list(session['device_data'])
-    
-    return render_template('vlan_details.html',
-                         device_info=device_info,
-                         vlans=vlans)
-
-@app.route('/get-vlan-details')
-def get_vlan_details():
-    if 'device_data' not in session:
-        return jsonify({'error': 'Требуется авторизация'}), 401
-    
-    vlan_id = request.args.get('id')
-    if not vlan_id:
-        return jsonify({'error': 'Не указан ID VLAN'}), 400
-    
-    try:
-        vlan_details = get_real_vlan_details(session['device_data'], vlan_id)
-        return jsonify(vlan_details)
-    except Exception as e:
-        app.logger.error(f"Ошибка получения деталей VLAN: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-def get_vlan_list(device_data):
-    """Получаем список VLAN с устройства"""
-    connection = None
-    try:
-        device_type = device_data.get('device_type', 'Cisco').lower()
-        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
-        
-        connection = ConnectHandler(
-            device_type=netmiko_device_type,
-            host=device_data['ip_address'],
-            username=device_data['username'],
-            password=device_data['password'],
-            secret=device_data.get('secret', ''),
-            timeout=20
-        )
-        
-        if device_data.get('secret'):
-            connection.enable()
-        
-        if device_type == 'cisco':
-            output = connection.send_command('show vlan brief')
-            return parse_cisco_vlan_list(output)
-        else:
-            output = connection.send_command('display vlan')
-            return parse_huawei_vlan_list(output)
-            
-    except Exception as e:
-        app.logger.error(f"Ошибка получения списка VLAN: {str(e)}")
-        return []
-    finally:
-        if connection:
-            connection.disconnect()
-
-def get_real_vlan_details(device_data, vlan_id):
-    """Получаем детальную информацию о VLAN"""
-    connection = None
-    try:
-        device_type = device_data.get('device_type', 'Cisco').lower()
-        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
-        
-        connection = ConnectHandler(
-            device_type=netmiko_device_type,
-            host=device_data['ip_address'],
-            username=device_data['username'],
-            password=device_data['password'],
-            secret=device_data.get('secret', ''),
-            timeout=20
-        )
-        
-        if device_data.get('secret'):
-            connection.enable()
-        
-        if device_type == 'cisco':
-            vlan_output = connection.send_command(f'show vlan id {vlan_id}')
-            svi_output = connection.send_command(f'show interface Vlan{vlan_id}')
-            ports_output = connection.send_command(f'show interface status | include {vlan_id}')
-            return parse_cisco_vlan_details(vlan_id, vlan_output, svi_output, ports_output)
-        else:
-            vlan_output = connection.send_command(f'display vlan {vlan_id}')
-            svi_output = connection.send_command(f'display interface Vlanif{vlan_id}')
-            ports_output = connection.send_command(f'display interface brief | include {vlan_id}')
-            return parse_huawei_vlan_details(vlan_id, vlan_output, svi_output, ports_output)
-            
-    except Exception as e:
-        app.logger.error(f"Ошибка получения деталей VLAN {vlan_id}: {str(e)}")
-        raise Exception(f"Не удалось получить данные VLAN: {str(e)}")
-    finally:
-        if connection:
-            connection.disconnect()
-
-def parse_cisco_vlan_list(output):
-    """Парсим список VLAN для Cisco"""
-    vlans = []
-    for line in output.splitlines():
-        if re.match(r'^\d+\s+\w+', line):
-            parts = re.split(r'\s+', line.strip())
-            vlans.append({
-                'id': parts[0],
-                'name': parts[1],
-                'status': parts[2]
-            })
-    return vlans
-
-def parse_huawei_vlan_list(output):
-    """Парсим список VLAN для Huawei"""
-    vlans = []
-    current_vlan = None
-    
-    for line in output.splitlines():
-        if line.startswith('VLAN ID:'):
-            if current_vlan:
-                vlans.append(current_vlan)
-            current_vlan = {
-                'id': line.split(':')[1].strip(),
-                'name': '',
-                'status': 'active'
-            }
-        elif line.startswith('VLAN Name:'):
-            current_vlan['name'] = line.split(':')[1].strip()
-    
-    if current_vlan:
-        vlans.append(current_vlan)
-    
-    return vlans
-
-def parse_cisco_vlan_details(vlan_id, vlan_output, svi_output, ports_output):
-    """Парсим детали VLAN для Cisco"""
-    details = {
-        'id': vlan_id,
-        'name': '',
-        'status': 'active',
-        'description': '',
-        'ports': [],
-        'ip': '',
-        'netmask': '',
-        'mtu': '1500',
-        'dhcp': 'Disabled',
-        'mac': '',
-        'traffic_in': '0 bps',
-        'traffic_out': '0 bps'
-    }
-    
-    # Парсим основную информацию VLAN
-    for line in vlan_output.splitlines():
-        if 'Name' in line and not details['name']:
-            details['name'] = line.split('Name')[1].strip()
-    
-    # Парсим SVI интерфейс
-    for line in svi_output.splitlines():
-        if 'Internet address is' in line:
-            ip_parts = line.split('Internet address is')[1].strip().split('/')
-            details['ip'] = ip_parts[0]
-            if len(ip_parts) > 1:
-                details['netmask'] = f"/{ip_parts[1]}"
-        elif 'MTU' in line:
-            details['mtu'] = line.split('MTU')[1].split()[0]
-        elif 'Hardware is' in line:
-            details['mac'] = line.split('address is')[1].split()[0]
-    
-    # Парсим порты
-    for line in ports_output.splitlines():
-        if 'connected' in line.lower():
-            port = line.split()[0]
-            details['ports'].append(port)
-    
-    return details
-
-def parse_huawei_vlan_details(vlan_id, vlan_output, svi_output, ports_output):
-    """Парсим детали VLAN для Huawei"""
-    details = {
-        'id': vlan_id,
-        'name': '',
-        'status': 'active',
-        'description': '',
-        'ports': [],
-        'ip': '',
-        'netmask': '',
-        'mtu': '1500',
-        'dhcp': 'Disabled',
-        'mac': '',
-        'traffic_in': '0 bps',
-        'traffic_out': '0 bps'
-    }
-    
-    # Парсим основную информацию VLAN
-    for line in vlan_output.splitlines():
-        if 'VLAN Name:' in line:
-            details['name'] = line.split(':')[1].strip()
-        elif 'Description:' in line:
-            details['description'] = line.split(':')[1].strip()
-    
-    # Парсим SVI интерфейс
-    for line in svi_output.splitlines():
-        if 'Internet Address is' in line:
-            ip_parts = line.split('Internet Address is')[1].strip().split('/')
-            details['ip'] = ip_parts[0]
-            if len(ip_parts) > 1:
-                details['netmask'] = f"/{ip_parts[1]}"
-        elif 'The Maximum Transmit Unit is' in line:
-            details['mtu'] = line.split('is')[1].strip()
-        elif 'Hardware address is' in line:
-            details['mac'] = line.split('is')[1].strip()
-    
-    # Парсим порты
-    for line in ports_output.splitlines():
-        if 'up' in line.lower() or 'down' in line.lower():
-            port = line.split()[0]
-            details['ports'].append(port)
-    
-    return details
-
 
 
 if __name__ == '__main__':
