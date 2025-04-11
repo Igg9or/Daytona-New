@@ -50,11 +50,10 @@
     <!-- Боковое меню -->
     <div class="sidebar">
         <div class="sidebar-header">
-            <img src="{{ url_for('static', filename='images/daytona_logo.png') }}" alt="Daytona Logo" class="sidebar-logo">
             <h2>Меню</h2>
         </div>
         <ul class="sidebar-menu">
-            <li class="menu-item active">
+            <li class="menu-item">
                 <a href="/device-status">Обзор системы</a>
             </li>
             <li class="menu-item">
@@ -71,23 +70,6 @@
             </li>
             <li class="menu-item">
                 <a href="/device-config"><i class="fas fa-file-code"></i> Конфигурация устройства</a>
-            </li>
-            <li class="menu-item">
-                <a href="/device-logs"><i class="fas fa-clipboard-list"></i> Логи устройства</a>
-            </li>
-            <li class="menu-item has-submenu">
-                <a href="#"><i class="fas fa-table"></i> Вывод таблиц</a>
-                <ul class="submenu">
-                    <li class="menu-item active">
-                        <a href="/routing-table"><i class="fas fa-route"></i> Маршрутизации</a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="/mac-table"><i class="fas fa-ethernet"></i> Коммутации</a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="/arp-table"><i class="fas fa-address-book"></i> ARP</a>
-                    </li>
-                </ul>
             </li>
         </ul>
     </div>

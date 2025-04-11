@@ -1,5 +1,6 @@
 
 
+
 BGPMONtest#
 BGPMONtest#terminal width 511
 BGPMONtest#terminal length 0
@@ -9,10 +10,11 @@ BGPMONtest#
 BGPMONtest#configure terminal
 Enter configuration commands, one per line.  End with CNTL/Z.
 BGPMONtest(config)#
-BGPMONtest(config)#interface Loopback 4
-BGPMONtest(config-if)#ip address 192.168.0.2 255.255.255.0
+BGPMONtest(config)#interface Loopback 3
+BGPMONtest(config-if)#ip address 192.168.0.5 255.255.255.0
+% 192.168.0.0 overlaps with Loopback4
 BGPMONtest(config-if)#mtu 1500
-% Interface Loopback4 does not support user settable mtu.
+% Interface Loopback3 does not support user settable mtu.
 BGPMONtest(config-if)#bandwidth 100000
 BGPMONtest(config-if)#duplex auto
                        ^

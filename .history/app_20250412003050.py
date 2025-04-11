@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session, redirect, url_for, jsonify, flash
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 from device_connector import connect_and_collect_data
 import json
 from datetime import datetime
@@ -1156,207 +1156,6 @@ def device_config():
     if 'device_data' not in session:
         return redirect(url_for('login'))
     
-    # Базовые данные устройства
-    device_info = {
-        'model': session['device_data'].get('device_type', 'Unknown'),
-        'ip_address': session['device_data'].get('ip_address', 'Unknown'),
-        'software_version': 'N/A',
-        'uptime': 'N/A'
-    }
-    
-    # Дополняем данными из сессии, если они есть
-    if 'device_status' in session:
-        device_status = json.loads(session['device_status'])
-        device_info.update({
-            'software_version': device_status.get('configuration', {}).get('software_version', 'N/A'),
-            'uptime': device_status.get('configuration', {}).get('uptime', 'N/A')
-        })
-    
-    # Получаем конфигурацию устройства
-    try:
-        full_config = get_device_configuration(session['device_data'])
-        if not full_config:
-            raise Exception("Не удалось получить конфигурацию")
-    except Exception as e:
-        app.logger.error(f"Ошибка при получении конфигурации: {str(e)}")
-        # Создаем пустую конфигурацию для шаблона
-        full_config = {
-            'raw_config': 'Не удалось загрузить конфигурацию устройства',
-            'parsed_config': {
-                'hostname': 'N/A',
-                'domain_name': 'N/A',
-                'vlans': [],
-                'interfaces': [],
-                'snmp': {'enabled': False, 'community': 'N/A'},
-                'ntp': {'enabled': False, 'servers': []},
-                'aaa': {'new_model': False, 'authentication': []},
-                'logging': {'enabled': False, 'servers': []},
-                'tacacs': {'enabled': False, 'servers': []}
-            }
-        }
-        flash(f"Ошибка: {str(e)}", 'error')
-    
-    return render_template('device_config.html',
-                         device_info=device_info,
-                         full_config=full_config)
-
-def get_device_configuration(device_data):
-    """Получение и парсинг конфигурации устройства"""
-    connection = None
-    try:
-        device_type = device_data.get('device_type', 'cisco').lower()
-        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
-        
-        connection = ConnectHandler(
-            device_type=netmiko_device_type,
-            host=device_data['ip_address'],
-            username=device_data['username'],
-            password=device_data['password'],
-            secret=device_data.get('secret', ''),
-            timeout=30,
-            global_delay_factor=2
-        )
-        
-        if device_data.get('secret'):
-            connection.enable()
-        
-        # Получаем полную конфигурацию
-        cmd = 'show running-config' if device_type == 'cisco' else 'display current-configuration'
-        output = connection.send_command(cmd, delay_factor=2)
-        
-        # Парсим конфигурацию
-        parsed_config = parse_device_configuration(output, device_type)
-        
-        return {
-            'raw_config': output,
-            'parsed_config': parsed_config
-        }
-        
-    except Exception as e:
-        app.logger.error(f"Ошибка получения конфигурации: {str(e)}")
-        return None
-    finally:
-        if connection:
-            connection.disconnect()
-
-def parse_device_configuration(config, device_type):
-    """Парсинг конфигурации устройства"""
-    result = {
-        'hostname': 'N/A',
-        'domain_name': 'N/A',
-        'vlans': [],
-        'interfaces': [],
-        'snmp': {'enabled': False, 'community': 'N/A'},
-        'ntp': {'enabled': False, 'servers': []},
-        'aaa': {'new_model': False, 'authentication': []},
-        'logging': {'enabled': False, 'servers': []},
-        'tacacs': {'enabled': False, 'servers': []}
-    }
-    
-    try:
-        # Hostname
-        hostname_match = re.search(r'hostname\s+(\S+)', config)
-        if hostname_match:
-            result['hostname'] = hostname_match.group(1)
-        
-        # Domain name
-        domain_match = re.search(r'ip\s+domain-name\s+(\S+)', config)
-        if domain_match:
-            result['domain_name'] = domain_match.group(1)
-        
-        # VLANs
-        if device_type == 'cisco':
-            vlan_matches = re.finditer(r'vlan\s+(\d+)\s*\n\s*name\s+(\S+)', config)
-            result['vlans'] = [{'id': m.group(1), 'name': m.group(2)} for m in vlan_matches]
-        else:
-            vlan_matches = re.finditer(r'vlan\s+(\d+)\s*\n\s*description\s+(.+?)\n', config)
-            result['vlans'] = [{'id': m.group(1), 'name': m.group(2).strip()} for m in vlan_matches]
-        
-        # Interfaces
-        if device_type == 'cisco':
-            intf_matches = re.finditer(r'interface\s+(\S+)\s*\n(.*?)(?=\ninterface|\Z)', config, re.DOTALL)
-        else:
-            intf_matches = re.finditer(r'interface\s+(\S+)\s*\n(.*?)(?=\ninterface|\Z)', config, re.DOTALL)
-        
-        for match in intf_matches:
-            intf_config = match.group(2)
-            intf_data = {
-                'name': match.group(1),
-                'description': re.search(r'description\s+(.+?)\n', intf_config).group(1).strip() 
-                             if 'description' in intf_config else 'N/A',
-                'ip': re.search(r'ip\s+address\s+(\S+\s+\S+)', intf_config).group(1) 
-                     if 'ip address' in intf_config else 'N/A',
-                'status': 'down' if 'shutdown' in intf_config else 'up'
-            }
-            result['interfaces'].append(intf_data)
-        
-        # SNMP
-        snmp_match = re.search(r'snmp-server\s+community\s+(\S+)', config)
-        if snmp_match:
-            result['snmp'] = {
-                'enabled': True,
-                'community': snmp_match.group(1)
-            }
-        
-        # NTP
-        ntp_servers = re.findall(r'ntp\s+server\s+(\S+)', config)
-        if ntp_servers:
-            result['ntp'] = {
-                'enabled': True,
-                'servers': ntp_servers
-            }
-        
-        # AAA
-        if 'aaa new-model' in config:
-            result['aaa']['new_model'] = True
-            result['aaa']['authentication'] = re.findall(r'aaa\s+authentication\s+(\S+.+?)\n', config)
-        
-        # Logging
-        logging_servers = re.findall(r'logging\s+host\s+(\S+)', config)
-        if logging_servers:
-            result['logging'] = {
-                'enabled': True,
-                'servers': logging_servers
-            }
-        
-        # TACACS
-        tacacs_servers = re.findall(r'tacacs-server\s+host\s+(\S+)', config)
-        if tacacs_servers:
-            result['tacacs'] = {
-                'enabled': True,
-                'servers': tacacs_servers
-            }
-    
-    except Exception as e:
-        app.logger.error(f"Ошибка парсинга конфигурации: {str(e)}")
-    
-    return result
-
-@app.route('/refresh-config')
-def refresh_config():
-    if 'device_data' not in session:
-        return redirect(url_for('login'))
-    
-    try:
-        # Обновляем данные устройства
-        result = connect_and_collect_data(session['device_data'])
-        if result['status'] == 'success':
-            session['device_status'] = json.dumps(result['data'])
-            session['last_update'] = datetime.now().isoformat()
-            flash('Конфигурация успешно обновлена', 'success')
-        else:
-            flash('Не удалось обновить конфигурацию', 'error')
-    
-    except Exception as e:
-        flash(f'Ошибка при обновлении конфигурации: {str(e)}', 'error')
-    
-    return redirect(url_for('device_config'))
-
-@app.route('/device-logs')
-def device_logs():
-    if 'device_data' not in session:
-        return redirect(url_for('login'))
-    
     # Получаем данные устройства
     device_info = {
         'model': session['device_data'].get('device_type', 'Unknown'),
@@ -1373,18 +1172,18 @@ def device_logs():
             'uptime': device_status.get('configuration', {}).get('uptime', 'N/A')
         })
     
-    # Получаем логи устройства
-    logs = get_device_logs(session['device_data'])
+    # Получаем полную конфигурацию устройства
+    full_config = get_device_configuration(session['device_data'])
     
-    return render_template('device_logs.html',
+    return render_template('device_config.html',
                          device_info=device_info,
-                         logs=logs)
+                         full_config=full_config)
 
-def get_device_logs(device_data):
-    """Получение логов с устройства"""
+def get_device_configuration(device_data):
+    """Получение полной конфигурации устройства"""
     connection = None
     try:
-        device_type = device_data.get('device_type', 'cisco').lower()
+        device_type = device_data.get('device_type', 'Cisco').lower()
         netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
         
         connection = ConnectHandler(
@@ -1393,121 +1192,108 @@ def get_device_logs(device_data):
             username=device_data['username'],
             password=device_data['password'],
             secret=device_data.get('secret', ''),
-            timeout=30,
-            global_delay_factor=2
+            timeout=20
         )
         
         if device_data.get('secret'):
             connection.enable()
         
-        # Для Cisco
+        # Получаем полную конфигурацию
         if device_type == 'cisco':
-            output = connection.send_command('show logging', delay_factor=2)
-            logs = parse_cisco_logs(output)
-        # Для Huawei
+            output = connection.send_command('show running-config', delay_factor=2)
         else:
-            output = connection.send_command('display logbuffer', delay_factor=2)
-            logs = parse_huawei_logs(output)
+            output = connection.send_command('display current-configuration', delay_factor=2)
         
-        return logs
+        # Парсим основные параметры
+        config_data = parse_device_configuration(output, device_type)
         
+        return {
+            'raw_config': output,
+            'parsed_config': config_data
+        }
+            
     except Exception as e:
-        app.logger.error(f"Ошибка получения логов: {str(e)}")
-        return []
+        app.logger.error(f"Ошибка получения конфигурации: {str(e)}")
+        return None
     finally:
         if connection:
             connection.disconnect()
 
-def parse_cisco_logs(log_output):
-    """Парсинг логов Cisco"""
-    logs = []
-    for line in log_output.splitlines():
-        if not line.strip():
-            continue
-        
-        # Пример формата: *Apr 11 15:22:01.123: %LINK-3-UPDOWN: Interface GigabitEthernet0/1, changed state to up
-        log_entry = {
-            'raw': line,
-            'timestamp': ' '.join(line.split()[:2]) if len(line.split()) > 1 else 'N/A',
-            'severity': 'info',
-            'message': line
-        }
-        
-        # Определяем уровень важности
-        if '%LINEPROTO-5' in line:
-            log_entry['severity'] = 'info'
-            log_entry['message'] = line.split('%LINEPROTO-5:')[-1].strip()
-        elif '%LINK-3' in line:
-            log_entry['severity'] = 'warning'
-            log_entry['message'] = line.split('%LINK-3:')[-1].strip()
-        elif '%SYS-5' in line:
-            log_entry['severity'] = 'info'
-            log_entry['message'] = line.split('%SYS-5:')[-1].strip()
-        elif '%LINEPROTO-5' in line:
-            log_entry['severity'] = 'info'
-            log_entry['message'] = line.split('%LINEPROTO-5:')[-1].strip()
-        
-        logs.append(log_entry)
+def parse_device_configuration(config, device_type):
+    """Парсинг конфигурации устройства"""
+    result = {}
     
-    return logs[-100:]  # Возвращаем последние 100 записей
-
-def parse_huawei_logs(log_output):
-    """Парсинг логов Huawei"""
-    logs = []
-    for line in log_output.splitlines():
-        if not line.strip():
-            continue
-        
-        # Пример формата: Apr 11 2025 15:22:01 HUAWEI %%01IFNET/4/LINK_STATE(l)[42]:Interface GigabitEthernet0/0/1 has turned into UP state.
-        log_entry = {
-            'raw': line,
-            'timestamp': ' '.join(line.split()[:4]) if len(line.split()) > 3 else 'N/A',
-            'severity': 'info',
-            'message': line
-        }
-        
-        # Определяем уровень важности
-        if '%%01' in line:
-            parts = line.split('%%01')
-            if len(parts) > 1:
-                severity_part = parts[1].split('/')[2] if '/' in parts[1] else ''
-                if severity_part.startswith('1'):
-                    log_entry['severity'] = 'critical'
-                elif severity_part.startswith('2'):
-                    log_entry['severity'] = 'error'
-                elif severity_part.startswith('3'):
-                    log_entry['severity'] = 'warning'
-                elif severity_part.startswith('4'):
-                    log_entry['severity'] = 'notice'
-                else:
-                    log_entry['severity'] = 'info'
-                
-                log_entry['message'] = parts[1].split(']:')[-1].strip()
-        
-        logs.append(log_entry)
+    # Общие параметры
+    result['hostname'] = re.search(r'hostname (.+)', config).group(1) if 'hostname' in config else 'N/A'
+    result['domain_name'] = re.search(r'ip domain-name (.+)', config).group(1) if 'ip domain-name' in config else 'N/A'
     
-    return logs[-100:]  # Возвращаем последние 100 записей
+    # VLAN информация
+    if device_type == 'cisco':
+        vlans = re.findall(r'vlan (\d+)\s+name (.+)', config)
+        result['vlans'] = [{'id': v[0], 'name': v[1]} for v in vlans] if vlans else []
+    else:
+        vlans = re.findall(r'vlan (\d+)\s+description (.+)', config)
+        result['vlans'] = [{'id': v[0], 'name': v[1]} for v in vlans] if vlans else []
+    
+    # SNMP
+    result['snmp'] = {
+        'enabled': 'snmp-server' in config,
+        'community': re.search(r'snmp-server community (.+)', config).group(1) if 'snmp-server community' in config else 'N/A'
+    }
+    
+    # NTP
+    result['ntp'] = {
+        'enabled': 'ntp server' in config,
+        'servers': re.findall(r'ntp server (.+)', config)
+    }
+    
+    # AAA
+    result['aaa'] = {
+        'new_model': 'aaa new-model' in config,
+        'authentication': re.findall(r'aaa authentication (.+)', config)
+    }
+    
+    # Интерфейсы
+    if device_type == 'cisco':
+        interfaces = re.findall(r'interface (.+?)\n(.+?)(?=\ninterface|\Z)', config, re.DOTALL)
+    else:
+        interfaces = re.findall(r'interface (.+?)\n(.+?)(?=\ninterface|\Z)', config, re.DOTALL)
+    
+    result['interfaces'] = []
+    for intf in interfaces:
+        interface_data = {
+            'name': intf[0].strip(),
+            'description': re.search(r'description (.+)', intf[1]).group(1) if 'description' in intf[1] else 'N/A',
+            'ip_address': re.search(r'ip address (.+)', intf[1]).group(1) if 'ip address' in intf[1] else 'N/A',
+            'status': 'up' if 'shutdown' not in intf[1] else 'down'
+        }
+        result['interfaces'].append(interface_data)
+    
+    # Дополнительные параметры
+    result['logging'] = {
+        'enabled': 'logging' in config,
+        'servers': re.findall(r'logging host (.+)', config)
+    }
+    
+    result['tacacs'] = {
+        'enabled': 'tacacs-server' in config,
+        'servers': re.findall(r'tacacs-server host (.+)', config)
+    }
+    
+    return result
 
-@app.route('/refresh-logs')
-def refresh_logs():
+@app.route('/refresh-config')
+def refresh_config():
     if 'device_data' not in session:
         return redirect(url_for('login'))
     
-    try:
-        # Обновляем данные устройства
-        result = connect_and_collect_data(session['device_data'])
-        if result['status'] == 'success':
-            session['device_status'] = json.dumps(result['data'])
-            session['last_update'] = datetime.now().isoformat()
-            flash('Логи успешно обновлены', 'success')
-        else:
-            flash('Не удалось обновить логи', 'error')
+    # Обновляем данные устройства
+    result = connect_and_collect_data(session['device_data'])
+    if result['status'] == 'success':
+        session['device_status'] = json.dumps(result['data'])
+        session['last_update'] = datetime.now().isoformat()
     
-    except Exception as e:
-        flash(f'Ошибка при обновлении логов: {str(e)}', 'error')
-    
-    return redirect(url_for('device_logs'))
-
+    return redirect(url_for('device_config'))
 
 if __name__ == '__main__':
     app.run(debug=True)

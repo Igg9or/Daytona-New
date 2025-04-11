@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Таблица коммутации</title>
+    <title>ARP таблица</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
-        .mac-table {
+        .arp-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
             font-size: 0.9em;
         }
         
-        .mac-table th {
+        .arp-table th {
             background-color: var(--primary);
             color: white;
             padding: 12px 15px;
@@ -23,23 +23,18 @@
             top: 0;
         }
         
-        .mac-table td {
+        .arp-table td {
             padding: 10px 15px;
             border-bottom: 1px solid #eee;
             font-family: monospace;
         }
         
-        .mac-table tr:hover {
+        .arp-table tr:hover {
             background-color: #f5f7fa;
         }
         
-        .vlan-badge {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            background-color: var(--primary-light);
-            color: var(--primary-dark);
+        .ip-address {
+            font-weight: bold;
         }
         
         .mac-address {
@@ -47,21 +42,34 @@
             font-weight: bold;
         }
         
-        .port-cell {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .port-status {
+        .interface-chip {
             display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
+            font-size: 0.85em;
         }
         
-        .status-up { background-color: var(--success); }
-        .status-down { background-color: var(--danger); }
+        .age-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background-color: #f0f0f0;
+            font-size: 0.8em;
+        }
+        
+        .type-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .type-dynamic { background-color: #e8f5e9; color: var(--success-dark); }
+        .type-static { background-color: #e3f2fd; color: var(--primary-dark); }
+        .type-incomplete { background-color: #ffebee; color: var(--danger-dark); }
         
         .device-info-header {
             display: flex;
@@ -82,6 +90,21 @@
             padding: 30px;
             color: var(--gray);
             font-style: italic;
+        }
+        
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        
+        .filter-input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            flex-grow: 1;
+            max-width: 300px;
         }
     </style>
 </head>
@@ -117,15 +140,13 @@
             <li class="menu-item has-submenu">
                 <a href="#"><i class="fas fa-table"></i> Вывод таблиц</a>
                 <ul class="submenu">
-                    <li class="menu-item active">
-                        <a href="/routing-table"><i class="fas fa-route"></i> Маршрутизации</a>
+                    <li class="menu-item">
+                        <a href="/routing-table">Таблица маршрутизации</a>
                     </li>
                     <li class="menu-item">
-                        <a href="/mac-table"><i class="fas fa-ethernet"></i> Коммутации</a>
+                        <a href="/mac-table">Таблица коммутации</a>
                     </li>
-                    <li class="menu-item">
-                        <a href="/arp-table"><i class="fas fa-address-book"></i> ARP</a>
-                    </li>
+                    <!-- Остальные пункты -->
                 </ul>
             </li>
         </ul>
@@ -136,17 +157,13 @@
         <div class="container">
             <header class="dashboard-header">
                 <h1 class="dashboard-title">
-                    <i class="fas fa-ethernet"></i> Таблица коммутации (MAC-адреса)
+                    <i class="fas fa-address-book"></i> ARP таблица
                     <span class="device-ip">{{ device_info.ip_address }}</span>
                 </h1>
                 <div class="dashboard-actions">
-                    <a href="/refresh-mac-table" class="btn btn-refresh">
+                    <a href="/refresh-arp-table" class="btn btn-refresh">
                         <i class="fas fa-sync-alt"></i> Обновить
                     </a>
-                    <button class="btn" onclick="toggleAgeType()">
-                        <i class="fas fa-clock"></i> 
-                        <span id="ageTypeLabel">Показать время</span>
-                    </button>
                 </div>
             </header>
 
@@ -170,77 +187,96 @@
                 </div>
             </div>
 
-            <!-- Таблица коммутации -->
+            <!-- Таблица ARP -->
             <div class="card">
-                <h2><i class="fas fa-table"></i> Таблица MAC-адресов</h2>
+                <h2><i class="fas fa-table"></i> Таблица ARP</h2>
                 
-                {% if mac_table %}
-                <table class="mac-table">
+                <div class="filter-controls">
+                    <input type="text" id="arpFilter" class="filter-input" placeholder="Фильтр по IP или MAC..." onkeyup="filterArpTable()">
+                    <select id="typeFilter" class="filter-input" onchange="filterArpTable()">
+                        <option value="">Все типы</option>
+                        <option value="dynamic">Dynamic</option>
+                        <option value="static">Static</option>
+                        <option value="incomplete">Incomplete</option>
+                    </select>
+                </div>
+                
+                {% if arp_table %}
+                <table class="arp-table" id="arpTable">
                     <thead>
                         <tr>
-                            <th>VLAN</th>
+                            <th>IP-адрес</th>
                             <th>MAC-адрес</th>
+                            <th>Интерфейс</th>
                             <th>Тип</th>
-                            <th>Порт</th>
-                            <th class="age-header">Возраст (сек)</th>
+                            <th>Возраст</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for entry in mac_table %}
-                        <tr>
-                            <td><span class="vlan-badge">{{ entry.vlan }}</span></td>
+                        {% for entry in arp_table %}
+                        <tr class="arp-entry" data-type="{{ entry.type|lower }}">
+                            <td class="ip-address">{{ entry.ip_address }}</td>
                             <td class="mac-address">{{ entry.mac_address }}</td>
-                            <td>{{ entry.type }}</td>
-                            <td class="port-cell">
-                                <span class="port-status status-{{ entry.port_status }}"></span>
-                                {{ entry.port }}
+                            <td><span class="interface-chip">{{ entry.interface }}</span></td>
+                            <td>
+                                <span class="type-badge type-{{ entry.type|lower }}">
+                                    {{ entry.type }}
+                                </span>
                             </td>
-                            <td class="age-cell">{{ entry.age }}</td>
+                            <td>
+                                <span class="age-badge" title="Обновлено {{ entry.last_update }}">
+                                    {{ entry.age }}
+                                </span>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
                 {% else %}
                 <div class="empty-table">
-                    <i class="fas fa-info-circle"></i> Таблица коммутации пуста или не может быть загружена
+                    <i class="fas fa-info-circle"></i> ARP таблица пуста или не может быть загружена
                 </div>
                 {% endif %}
                 
                 <div class="last-update">
                     <i class="fas fa-clock"></i> Последнее обновление: {{ last_update }}
-                    <span id="totalMacCount" style="margin-left: 20px;">Всего MAC-адресов: {{ mac_table|length if mac_table else 0 }}</span>
+                    <span id="totalArpCount" style="margin-left: 20px;">Всего записей: {{ arp_table|length if arp_table else 0 }}</span>
+                    <span id="filteredArpCount" style="margin-left: 20px;"></span>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Переключение между отображением возраста в секундах и времени последнего обновления
-        function toggleAgeType() {
-            const ageCells = document.querySelectorAll('.age-cell');
-            const ageTypeLabel = document.getElementById('ageTypeLabel');
+        // Фильтрация таблицы ARP
+        function filterArpTable() {
+            const filter = document.getElementById('arpFilter').value.toUpperCase();
+            const typeFilter = document.getElementById('typeFilter').value;
+            const rows = document.querySelectorAll('#arpTable tbody tr.arp-entry');
+            let visibleCount = 0;
             
-            ageCells.forEach(cell => {
-                if (cell.dataset.seconds === undefined) {
-                    cell.dataset.seconds = cell.textContent;
-                    const date = new Date();
-                    date.setSeconds(date.getSeconds() - parseInt(cell.textContent));
-                    cell.textContent = date.toLocaleTimeString();
-                    ageTypeLabel.textContent = 'Показать возраст';
+            rows.forEach(row => {
+                const ip = row.querySelector('.ip-address').textContent.toUpperCase();
+                const mac = row.querySelector('.mac-address').textContent.toUpperCase();
+                const type = row.getAttribute('data-type');
+                
+                const matchesFilter = ip.includes(filter) || mac.includes(filter);
+                const matchesType = !typeFilter || type === typeFilter;
+                
+                if (matchesFilter && matchesType) {
+                    row.style.display = '';
+                    visibleCount++;
                 } else {
-                    cell.textContent = cell.dataset.seconds;
-                    delete cell.dataset.seconds;
-                    ageTypeLabel.textContent = 'Показать время';
+                    row.style.display = 'none';
                 }
             });
+            
+            document.getElementById('filteredArpCount').textContent = `Отфильтровано: ${visibleCount}`;
         }
         
-        // Инициализация данных возраста
+        // Инициализация фильтра при загрузке
         document.addEventListener('DOMContentLoaded', () => {
-            const ageCells = document.querySelectorAll('.age-cell');
-            ageCells.forEach(cell => {
-                cell.dataset.seconds = cell.textContent;
-            });
+            filterArpTable();
         });
     </script>
 </body>

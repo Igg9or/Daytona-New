@@ -1,0 +1,3536 @@
+﻿
+
+================================================================================
+Ф: C:\Users\yatma\Documents\Daytona-main + Huawei\templates\mac_table.html
+: 10289 bytes
+Т : 04/11/2025 23:13:31
+================================================================================
+
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Таблица коммутации</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .mac-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        
+        .mac-table th {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        
+        .mac-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            font-family: monospace;
+        }
+        
+        .mac-table tr:hover {
+            background-color: #f5f7fa;
+        }
+        
+        .vlan-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
+        }
+        
+        .mac-address {
+            font-family: monospace;
+            font-weight: bold;
+        }
+        
+        .port-cell {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .port-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .status-up { background-color: var(--success); }
+        .status-down { background-color: var(--danger); }
+        
+        .device-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .last-update {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: var(--gray);
+            text-align: right;
+        }
+        
+        .empty-table {
+            text-align: center;
+            padding: 30px;
+            color: var(--gray);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/daytona_logo.png') }}" alt="Daytona Logo" class="sidebar-logo">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item">
+                <a href="/device-status"><i class="fas fa-tachometer-alt"></i> Обзор системы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interfaces"><i class="fas fa-network-wired"></i> Интерфейсы</a>
+            </li>
+            <li class="menu-item has-submenu">
+                <a href="#"><i class="fas fa-table"></i> Вывод таблиц</a>
+                <ul class="submenu">
+                    <li class="menu-item">
+                        <a href="/routing-table"><i class="fas fa-route"></i> Маршрутизации</a>
+                    </li>
+                    <li class="menu-item active">
+                        <a href="/mac-table"><i class="fas fa-ethernet"></i> Коммутации</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/arp-table"><i class="fas fa-address-book"></i> ARP</a>
+                    </li>
+                </ul>
+            </li>
+            <li class="menu-item">
+                <a href="/vlan-info"><i class="fas fa-sitemap"></i> VLAN</a>
+            </li>
+            <li class="menu-item has-submenu">
+                <a href="#"><i class="fas fa-cogs"></i> Дополнительно</a>
+                <ul class="submenu">
+                    <li class="menu-item">
+                        <a href="/neighbors"><i class="fas fa-link"></i> Соседи</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/logs"><i class="fas fa-clipboard-list"></i> Логи</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/security"><i class="fas fa-shield-alt"></i> Безопасность</a>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-ethernet"></i> Таблица коммутации (MAC-адреса)
+                    <span class="device-ip">{{ device_info.ip_address }}</span>
+                </h1>
+                <div class="dashboard-actions">
+                    <a href="/refresh-mac-table" class="btn btn-refresh">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </a>
+                    <button class="btn" onclick="toggleAgeType()">
+                        <i class="fas fa-clock"></i> 
+                        <span id="ageTypeLabel">Показать время</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Информация об устройстве -->
+            <div class="card">
+                <div class="device-info-header">
+                    <h2><i class="fas fa-info-circle"></i> Информация об устройстве</h2>
+                </div>
+                <div class="detail-grid" style="grid-template-columns: 150px 1fr 150px 1fr;">
+                    <div class="detail-label">Модель:</div>
+                    <div class="detail-value">{{ device_info.model }}</div>
+                    
+                    <div class="detail-label">Версия ПО:</div>
+                    <div class="detail-value">{{ device_info.software_version }}</div>
+                    
+                    <div class="detail-label">IP-адрес:</div>
+                    <div class="detail-value">{{ device_info.ip_address }}</div>
+                    
+                    <div class="detail-label">Время работы:</div>
+                    <div class="detail-value">{{ device_info.uptime }}</div>
+                </div>
+            </div>
+
+            <!-- Таблица коммутации -->
+            <div class="card">
+                <h2><i class="fas fa-table"></i> Таблица MAC-адресов</h2>
+                
+                {% if mac_table %}
+                <table class="mac-table">
+                    <thead>
+                        <tr>
+                            <th>VLAN</th>
+                            <th>MAC-адрес</th>
+                            <th>Тип</th>
+                            <th>Порт</th>
+                            <th class="age-header">Возраст (сек)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in mac_table %}
+                        <tr>
+                            <td><span class="vlan-badge">{{ entry.vlan }}</span></td>
+                            <td class="mac-address">{{ entry.mac_address }}</td>
+                            <td>{{ entry.type }}</td>
+                            <td class="port-cell">
+                                <span class="port-status status-{{ entry.port_status }}"></span>
+                                {{ entry.port }}
+                            </td>
+                            <td class="age-cell">{{ entry.age }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-table">
+                    <i class="fas fa-info-circle"></i> Таблица коммутации пуста или не может быть загружена
+                </div>
+                {% endif %}
+                
+                <div class="last-update">
+                    <i class="fas fa-clock"></i> Последнее обновление: {{ last_update }}
+                    <span id="totalMacCount" style="margin-left: 20px;">Всего MAC-адресов: {{ mac_table|length if mac_table else 0 }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Переключение между отображением возраста в секундах и времени последнего обновления
+        function toggleAgeType() {
+            const ageCells = document.querySelectorAll('.age-cell');
+            const ageTypeLabel = document.getElementById('ageTypeLabel');
+            
+            ageCells.forEach(cell => {
+                if (cell.dataset.seconds === undefined) {
+                    cell.dataset.seconds = cell.textContent;
+                    const date = new Date();
+                    date.setSeconds(date.getSeconds() - parseInt(cell.textContent));
+                    cell.textContent = date.toLocaleTimeString();
+                    ageTypeLabel.textContent = 'Показать возраст';
+                } else {
+                    cell.textContent = cell.dataset.seconds;
+                    delete cell.dataset.seconds;
+                    ageTypeLabel.textContent = 'Показать время';
+                }
+            });
+        }
+        
+        // Инициализация данных возраста
+        document.addEventListener('DOMContentLoaded', () => {
+            const ageCells = document.querySelectorAll('.age-cell');
+            ageCells.forEach(cell => {
+                cell.dataset.seconds = cell.textContent;
+            });
+        });
+    </script>
+</body>
+</html>
+
+
+================================================================================
+Ф: C:\Users\yatma\Documents\Daytona-main + Huawei\templates\routing_table.html
+: 10396 bytes
+Т : 04/11/2025 23:08:09
+================================================================================
+
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Таблица маршрутизации</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .routing-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        
+        .routing-table th {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        
+        .routing-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            font-family: monospace;
+        }
+        
+        .routing-table tr:hover {
+            background-color: #f5f7fa;
+        }
+        
+        .route-type {
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .route-type-D { color: var(--success); } /* Direct */
+        .route-type-C { color: var(--success); } /* Connected */
+        .route-type-S { color: var(--primary); } /* Static */
+        .route-type-R { color: var(--warning); } /* RIP */
+        .route-type-O { color: #8a2be2; }       /* OSPF */
+        .route-type-i { color: #ff69b4; }       /* IS-IS */
+        .route-type-B { color: #a52a2a; }       /* BGP */
+        
+        .device-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .protocol-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            background-color: #f0f0f0;
+        }
+        
+        .badge-D { background-color: #e8f5e9; color: var(--success); }
+        .badge-C { background-color: #e8f5e9; color: var(--success); }
+        .badge-S { background-color: #e3f2fd; color: var(--primary); }
+        .badge-R { background-color: #fff8e1; color: var(--warning); }
+        .badge-O { background-color: #f3e5f5; color: #8a2be2; }
+        .badge-i { background-color: #fce4ec; color: #ff69b4; }
+        .badge-B { background-color: #efebe9; color: #a52a2a; }
+        
+        .last-update {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: var(--gray);
+            text-align: right;
+        }
+        
+        .route-details {
+            font-size: 0.8em;
+            color: var(--gray);
+        }
+    </style>
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/daytona_logo.png') }}" alt="Daytona Logo" class="sidebar-logo">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item">
+                <a href="/device-status"><i class="fas fa-tachometer-alt"></i> Обзор системы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interfaces"><i class="fas fa-network-wired"></i> Интерфейсы</a>
+            </li>
+            <li class="menu-item has-submenu">
+                <a href="#"><i class="fas fa-table"></i> Вывод таблиц</a>
+                <ul class="submenu">
+                    <li class="menu-item active">
+                        <a href="/routing-table"><i class="fas fa-route"></i> Маршрутизации</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/mac-table"><i class="fas fa-ethernet"></i> Коммутации</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/arp-table"><i class="fas fa-address-book"></i> ARP</a>
+                    </li>
+                </ul>
+            </li>
+            <li class="menu-item">
+                <a href="/vlan-info"><i class="fas fa-sitemap"></i> VLAN</a>
+            </li>
+            <li class="menu-item has-submenu">
+                <a href="#"><i class="fas fa-cogs"></i> Дополнительно</a>
+                <ul class="submenu">
+                    <li class="menu-item">
+                        <a href="/neighbors"><i class="fas fa-link"></i> Соседи</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/logs"><i class="fas fa-clipboard-list"></i> Логи</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/security"><i class="fas fa-shield-alt"></i> Безопасность</a>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-route"></i> Таблица маршрутизации
+                    <span class="device-ip">{{ device_info.ip_address }}</span>
+                </h1>
+                <div class="dashboard-actions">
+                    <a href="/refresh-routing-table" class="btn btn-refresh">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </a>
+                </div>
+            </header>
+
+            <!-- Информация об устройстве -->
+            <div class="card">
+                <div class="device-info-header">
+                    <h2><i class="fas fa-info-circle"></i> Информация об устройстве</h2>
+                </div>
+                <div class="detail-grid" style="grid-template-columns: 150px 1fr 150px 1fr;">
+                    <div class="detail-label">Модель:</div>
+                    <div class="detail-value">{{ device_info.model }}</div>
+                    
+                    <div class="detail-label">Версия ПО:</div>
+                    <div class="detail-value">{{ device_info.software_version }}</div>
+                    
+                    <div class="detail-label">IP-адрес:</div>
+                    <div class="detail-value">{{ device_info.ip_address }}</div>
+                    
+                    <div class="detail-label">Время работы:</div>
+                    <div class="detail-value">{{ device_info.uptime }}</div>
+                </div>
+            </div>
+
+            <!-- Таблица маршрутизации -->
+            <div class="card">
+                <h2><i class="fas fa-table"></i> Таблица маршрутизации</h2>
+                
+                {% if routing_table %}
+                <table class="routing-table">
+                    <thead>
+                        <tr>
+                            <th>Тип</th>
+                            <th>Сеть назначения</th>
+                            <th>Маска/Префикс</th>
+                            <th>Адм. расстояние</th>
+                            <th>Метрика</th>
+                            <th>Next Hop</th>
+                            <th>Интерфейс</th>
+                            <th>Время</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for route in routing_table %}
+                        <tr>
+                            <td class="route-type route-type-{{ route.type }}">
+                                <span class="protocol-badge badge-{{ route.type }}">{{ route.type }}</span>
+                            </td>
+                            <td>{{ route.network }}</td>
+                            <td>
+                                {% if route.mask %}
+                                    {{ route.mask }}
+                                {% elif route.prefix %}
+                                    /{{ route.prefix }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ route.admin_distance if route.admin_distance else '-' }}</td>
+                            <td>{{ route.metric if route.metric else '-' }}</td>
+                            <td>
+                                {% if route.next_hop == '0.0.0.0' %}
+                                    directly connected
+                                {% else %}
+                                    {{ route.next_hop if route.next_hop else '-' }}
+                                {% endif %}
+                            </td>
+                            <td>{{ route.interface if route.interface else '-' }}</td>
+                            <td>
+                                {% if route.time %}
+                                    <span class="route-details">{{ route.time }}</span>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-triangle"></i> Не удалось загрузить таблицу маршрутизации
+                </div>
+                {% endif %}
+                
+                <div class="last-update">
+                    <i class="fas fa-clock"></i> Последнее обновление: {{ last_update }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Font Awesome для иконок -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js"></script>
+</body>
+</html>
+
+
+================================================================================
+Ф: C:\Users\yatma\Documents\Daytona-main + Huawei\templates\success.html
+: 2013 bytes
+Т : 04/08/2025 19:03:35
+================================================================================
+
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Успешное подключение</title>
+    <style>
+        /* Общие стили как в login.html */
+        body {
+            background-color: #f5f7fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .success-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .success-icon {
+            color: #2ecc71;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #212529;
+            margin-bottom: 20px;
+        }
+        
+        .success-message {
+            background: #f0fff4;
+            border-left: 4px solid #2ecc71;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        
+        .back-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #4361ee;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        
+        .back-btn:hover {
+            background-color: #3a56d4;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-card">
+        <div class="success-icon">✓</div>
+        <h1>Подключение установлено</h1>
+        <div class="success-message">{{ success_message }}</div>
+        <a href="/" class="back-btn">Вернуться</a>
+    </div>
+</body>
+</html>
+
+
+================================================================================
+Ф: C:\Users\yatma\Documents\Daytona-main + Huawei\templates\vlan_details.html
+: 17023 bytes
+Т : 04/11/2025 22:14:35
+================================================================================
+
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детали VLAN</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .vlan-details-container {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+        
+        .vlan-detail-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .vlan-detail-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+        
+        .detail-section {
+            margin-bottom: 25px;
+        }
+        
+        .detail-section-title {
+            font-size: 1.1rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary-light);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 12px;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: var(--dark);
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        
+        .detail-value {
+            font-weight: 500;
+            color: var(--dark);
+            word-break: break-word;
+        }
+        
+        .vlan-selector {
+            margin-bottom: 30px;
+        }
+        
+        select {
+            width: 100%;
+            max-width: 300px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            background-color: white;
+            cursor: pointer;
+            transition: border 0.3s;
+        }
+        
+        select:hover {
+            border-color: var(--primary);
+        }
+        
+        .device-info {
+            background: var(--primary-light);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .port-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: var(--primary-light);
+            border-radius: 4px;
+            margin: 3px;
+            font-family: monospace;
+            font-size: 0.85em;
+            transition: background 0.2s;
+        }
+        
+        .port-badge:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .ports-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 5px;
+        }
+        
+        .status-active {
+            color: var(--success);
+            font-weight: bold;
+        }
+        
+        .status-inactive {
+            color: var(--danger);
+            font-weight: bold;
+        }
+        
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+            grid-column: 1 / -1;
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+        
+        .error-message {
+            color: var(--danger);
+            background-color: #ffeeee;
+            padding: 20px;
+            border-radius: 8px;
+            grid-column: 1 / -1;
+            text-align: center;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @media (max-width: 768px) {
+            .vlan-details-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .detail-grid {
+                grid-template-columns: 120px 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/daytona_logo.png') }}" alt="Daytona Logo" class="sidebar-logo">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item">
+                <a href="/device-status">Обзор системы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interfaces">Интерфейсы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/vlan-info">Таблица VLAN</a>
+            </li>
+            <li class="menu-item active">
+                <a href="/vlan-details">Информация о VLAN</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-sitemap"></i> Детальная информация VLAN
+                </h1>
+            </header>
+
+            <!-- Информация об устройстве -->
+            <div class="device-info">
+                <div class="detail-grid">
+                    <div class="detail-label">Модель устройства:</div>
+                    <div class="detail-value">{{ device_info.model }}</div>
+                    
+                    <div class="detail-label">Версия ПО:</div>
+                    <div class="detail-value">{{ device_info.software_version }}</div>
+                    
+                    <div class="detail-label">IP-адрес:</div>
+                    <div class="detail-value">{{ device_info.ip_address }}</div>
+                </div>
+            </div>
+
+            <!-- Выбор VLAN -->
+            <div class="vlan-selector">
+                <select id="vlanSelect">
+                    <option value="">-- Выберите VLAN --</option>
+                    {% for vlan in vlans %}
+                    <option value="{{ vlan.id }}">VLAN {{ vlan.id }} - {{ vlan.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Контейнер для деталей VLAN -->
+            <div id="vlanDetails" class="vlan-details-container" style="display: none; opacity: 0;">
+                <!-- Шаблон будет заполняться динамически -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Шаблон для данных VLAN (скрыт) -->
+    <template id="vlanTemplate">
+        <div class="vlan-detail-card">
+            <div class="detail-section">
+                <h3 class="detail-section-title">
+                    <i class="fas fa-info-circle"></i> Основная информация
+                </h3>
+                <div class="detail-grid">
+                    <div class="detail-label">ID VLAN:</div>
+                    <div class="detail-value" id="vlanId"></div>
+                    
+                    <div class="detail-label">Имя VLAN:</div>
+                    <div class="detail-value" id="vlanName"></div>
+                    
+                    <div class="detail-label">Статус:</div>
+                    <div class="detail-value"><span id="vlanStatus"></span></div>
+                    
+                    <div class="detail-label">Описание:</div>
+                    <div class="detail-value" id="vlanDescription"></div>
+                    
+                    <div class="detail-label">MAC-адрес:</div>
+                    <div class="detail-value" id="vlanMac"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="vlan-detail-card">
+            <div class="detail-section">
+                <h3 class="detail-section-title">
+                    <i class="fas fa-cog"></i> Настройки сети
+                </h3>
+                <div class="detail-grid">
+                    <div class="detail-label">IP-адрес (SVI):</div>
+                    <div class="detail-value" id="vlanIp"></div>
+                    
+                    <div class="detail-label">Маска подсети:</div>
+                    <div class="detail-value" id="vlanNetmask"></div>
+                    
+                    <div class="detail-label">MTU:</div>
+                    <div class="detail-value" id="vlanMtu"></div>
+                    
+                    <div class="detail-label">DHCP:</div>
+                    <div class="detail-value" id="vlanDhcp"></div>
+                    
+                    <div class="detail-label">Входящий трафик:</div>
+                    <div class="detail-value" id="vlanTrafficIn"></div>
+                    
+                    <div class="detail-label">Исходящий трафик:</div>
+                    <div class="detail-value" id="vlanTrafficOut"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="vlan-detail-card">
+            <div class="detail-section">
+                <h3 class="detail-section-title">
+                    <i class="fas fa-ethernet"></i> Принадлежащие порты
+                </h3>
+                <div class="ports-container" id="vlanPorts"></div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const vlanSelect = document.getElementById('vlanSelect');
+            const vlanDetailsContainer = document.getElementById('vlanDetails');
+            const vlanTemplate = document.getElementById('vlanTemplate');
+            
+            // Функция для безопасного установления текста
+            function setSafeText(elementId, text, defaultValue = '') {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.textContent = text || defaultValue;
+                }
+            }
+            
+            // Функция для отображения состояния загрузки
+            function showLoadingState() {
+                vlanDetailsContainer.innerHTML = `
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i> Загрузка данных VLAN...
+                    </div>
+                `;
+                vlanDetailsContainer.style.display = 'grid';
+                vlanDetailsContainer.style.opacity = '1';
+            }
+            
+            // Функция для отображения ошибки
+            function showErrorState(message) {
+                vlanDetailsContainer.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-triangle"></i> ${message}
+                    </div>
+                `;
+                vlanDetailsContainer.style.display = 'grid';
+                vlanDetailsContainer.style.opacity = '1';
+            }
+            
+            // Функция для отображения данных VLAN
+            function showVlanData(data) {
+                try {
+                    // Клонируем шаблон
+                    const clone = vlanTemplate.content.cloneNode(true);
+                    
+                    // Очищаем контейнер и добавляем клонированный шаблон
+                    vlanDetailsContainer.innerHTML = '';
+                    vlanDetailsContainer.appendChild(clone);
+                    
+                    // Даем время на рендеринг DOM
+                    setTimeout(() => {
+                        // Заполняем данные
+                        setSafeText('vlanId', data.id);
+                        setSafeText('vlanName', data.name, 'Не указано');
+                        
+                        const statusElement = document.getElementById('vlanStatus');
+                        if (statusElement) {
+                            statusElement.textContent = data.status === 'active' ? 'Активен' : 'Неактивен';
+                            statusElement.className = data.status === 'active' ? 'status-active' : 'status-inactive';
+                        }
+                        
+                        setSafeText('vlanDescription', data.description, 'Не указано');
+                        setSafeText('vlanMac', data.mac, 'N/A');
+                        setSafeText('vlanIp', data.ip, 'Не назначен');
+                        setSafeText('vlanNetmask', data.netmask, 'N/A');
+                        setSafeText('vlanMtu', data.mtu, '1500');
+                        setSafeText('vlanDhcp', data.dhcp, 'Disabled');
+                        setSafeText('vlanTrafficIn', data.traffic_in, '0 bps');
+                        setSafeText('vlanTrafficOut', data.traffic_out, '0 bps');
+                        
+                        // Обрабатываем порты
+                        const portsContainer = document.getElementById('vlanPorts');
+                        if (portsContainer) {
+                            if (data.ports && data.ports.length > 0) {
+                                data.ports.forEach(port => {
+                                    const portElement = document.createElement('span');
+                                    portElement.className = 'port-badge';
+                                    portElement.textContent = port;
+                                    portsContainer.appendChild(portElement);
+                                });
+                            } else {
+                                portsContainer.textContent = 'Нет портов в этом VLAN';
+                                portsContainer.style.color = '#999';
+                                portsContainer.style.fontStyle = 'italic';
+                            }
+                        }
+                        
+                        // Показываем контейнер с анимацией
+                        vlanDetailsContainer.style.display = 'grid';
+                        setTimeout(() => {
+                            vlanDetailsContainer.style.opacity = '1';
+                        }, 10);
+                    }, 10);
+                } catch (error) {
+                    console.error('Ошибка при отображении данных VLAN:', error);
+                    showErrorState(`Ошибка отображения данных: ${error.message}`);
+                }
+            }
+            
+            // Основная функция загрузки данных VLAN
+            async function loadVlanDetails(vlanId) {
+                if (!vlanId) {
+                    vlanDetailsContainer.style.opacity = '0';
+                    setTimeout(() => {
+                        vlanDetailsContainer.style.display = 'none';
+                    }, 300);
+                    return;
+                }
+                
+                try {
+                    showLoadingState();
+                    
+                    const response = await fetch(`/get-vlan-details?id=${vlanId}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Ошибка HTTP: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    showVlanData(data);
+                } catch (error) {
+                    console.error('Ошибка при загрузке VLAN:', error);
+                    showErrorState(error.message);
+                }
+            }
+            
+            // Инициализация обработчика событий
+            if (vlanSelect) {
+                vlanSelect.addEventListener('change', function() {
+                    loadVlanDetails(this.value);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+================================================================================
+Ф: C:\Users\yatma\Documents\Daytona-main + Huawei\templates\vlan_info.html
+: 14986 bytes
+Т : 04/11/2025 22:42:48
+================================================================================
+
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Информация о VLAN</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .device-info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .vlan-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .vlan-table th {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        
+        .vlan-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .vlan-table tr:hover {
+            background-color: #f5f7fa;
+        }
+        
+        .vlan-active {
+            color: var(--success);
+            font-weight: bold;
+        }
+        
+        .vlan-inactive {
+            color: var(--danger);
+            font-weight: bold;
+        }
+        
+        .vlan-access {
+            color: var(--primary);
+            font-weight: bold;
+        }
+        
+        .vlan-trunk {
+            color: var(--warning);
+            font-weight: bold;
+        }
+        
+        .vlan-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background-color: var(--primary-light);
+            border-radius: 4px;
+            margin: 2px;
+            font-size: 0.8em;
+        }
+        .vlan-details {
+    margin-top: 30px;
+}
+
+.vlan-port-table {
+    width: 100%;
+    margin-top: 15px;
+}
+
+.vlan-port-table th {
+    background-color: #f0f0f0;
+}
+
+.vlan-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.vlan-tabs {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 20px;
+}
+
+.vlan-tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+}
+
+.vlan-tab.active {
+    border-color: #ddd;
+    border-bottom-color: white;
+    background: white;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+.vlan-tab-content {
+    display: none;
+}
+
+.vlan-tab-content.active {
+    display: block;
+}
+    </style>
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/daytona_logo.png') }}" alt="Daytona Logo" class="sidebar-logo">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item">
+                <a href="/device-status">Обзор системы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interfaces">Интерфейсы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interface-details">Детали интерфейса</a>
+            </li>
+            <li class="menu-item active">
+                <a href="/vlan-info">Информация о VLAN</a>
+            </li>
+            <li class="menu-item">
+                <a href="/vlan-details">Данные о конкретном VLAN</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-sitemap"></i> Информация о VLAN
+                </h1>
+            </header>
+
+            <!-- Информация об устройстве -->
+            <div class="device-info-card">
+                <h2><i class="fas fa-info-circle"></i> Информация об устройстве</h2>
+                <div class="detail-grid" style="grid-template-columns: 150px 1fr;">
+                    <div class="detail-label">Модель:</div>
+                    <div class="detail-value">{{ device_info.model }}</div>
+                    
+                    <div class="detail-label">Версия ПО:</div>
+                    <div class="detail-value">{{ device_info.software_version }}</div>
+                    
+                    <div class="detail-label">IP-адрес:</div>
+                    <div class="detail-value">{{ device_info.ip_address }}</div>
+                    
+                    <div class="detail-label">Время работы:</div>
+                    <div class="detail-value">{{ device_info.uptime }}</div>
+                </div>
+            </div>
+
+            <!-- Таблица VLAN -->
+            <div class="card">
+                <h2><i class="fas fa-table"></i> Таблица VLAN</h2>
+                <table class="vlan-table">
+                    <thead>
+                        <tr>
+                            <th>ID VLAN</th>
+                            <th>Имя VLAN</th>
+                            <th>Описание</th>
+                            <th>Статус</th>
+                            <th>Режим порта</th>
+                            <th>Назначенный VLAN</th>
+                            <th>Порты</th>  <!-- Изменено с "Разрешенные VLAN" -->
+                            <th>MAC-адреса</th>
+                            <th>IP SVI</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vlan in vlans %}
+                        <tr>
+                            <td>{{ vlan.id }}</td>
+                            <td>{{ vlan.name }}</td>
+                            <td>{{ vlan.description or '-' }}</td>
+                            <td class="{% if vlan.status == 'active' %}vlan-active{% else %}vlan-inactive{% endif %}">
+                                {{ vlan.status }}
+                            </td>
+                            <td class="{% if vlan.port_mode == 'access' %}vlan-access{% else %}vlan-trunk{% endif %}">
+                                {{ vlan.port_mode }}
+                            </td>
+                            <td>{{ vlan.access_vlan or '-' }}</td>
+                            <td class="ports-cell">
+                                {% if vlan.ports %}
+                                    <div class="ports-list collapsed" id="ports-{{ loop.index }}">
+                                        {% for port in vlan.ports.split(',') %}
+                                            <span class="port-badge">{{ port.strip() }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    <small class="show-more" onclick="togglePorts('ports-{{ loop.index }}', this)">
+                                        Показать все ▼
+                                    </small>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ vlan.mac_addresses or '-' }}</td>
+                            <td>{{ vlan.svi_ip or '-' }}</td>
+                            <td>
+                                <button class="btn-edit" onclick="openVlanEditModal({{ vlan.id }}, '{{ vlan.name }}', '{{ vlan.description }}', '{{ vlan.port_mode }}')">
+                                    <i class="fas fa-edit"></i> Редактировать
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div id="vlanEditModal" class="modal">
+                    <div class="modal-content">
+                        <span class="close" onclick="closeVlanEditModal()">&times;</span>
+                        <h2>Редактирование VLAN <span id="modalVlanId"></span></h2>
+                        
+                        <form id="vlanEditForm">
+                            <input type="hidden" id="editVlanId">
+                            
+                            <div class="form-group">
+                                <label for="editVlanName">Имя VLAN:</label>
+                                <input type="text" id="editVlanName" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="editVlanDescription">Описание:</label>
+                                <input type="text" id="editVlanDescription">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="editPortMode">Режим порта:</label>
+                                <select id="editPortMode">
+                                    <option value="access">Access</option>
+                                    <option value="trunk">Trunk</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-cancel" onclick="closeVlanEditModal()">Отмена</button>
+                                <button type="submit" class="btn btn-save">Сохранить</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function togglePorts(portsId, button) {
+            const portsList = document.getElementById(portsId);
+            portsList.classList.toggle('collapsed');
+            
+            if (portsList.classList.contains('collapsed')) {
+                button.textContent = 'Показать все ▼';
+            } else {
+                button.textContent = 'Скрыть ▲';
+            }
+        }
+       
+         // Глобальные переменные для хранения состояния
+    let currentEditingVlan = null;
+    let allInterfaces = [];
+
+    // Открытие модального окна с дополнительной информацией
+    async function openVlanEditModal(id, name, description, portMode) {
+        currentEditingVlan = { id, name, description, port_mode: portMode };
+        
+        // Заполняем форму
+        document.getElementById('modalVlanId').textContent = id;
+        document.getElementById('editVlanId').value = id;
+        document.getElementById('editVlanName').value = name || '';
+        document.getElementById('editVlanDescription').value = description || '';
+        document.getElementById('editPortMode').value = portMode || 'access';
+        
+        // Загружаем интерфейсы для этого VLAN
+        try {
+            const response = await fetch(`/get-vlan-interfaces?id=${id}`);
+            const data = await response.json();
+            
+            if (data.success && data.interfaces) {
+                allInterfaces = data.interfaces;
+                updateInterfaceList();
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки интерфейсов:', error);
+        }
+        
+        document.getElementById('vlanEditModal').style.display = 'block';
+    }
+
+    // Обновление списка интерфейсов в модальном окне
+    function updateInterfaceList() {
+        const container = document.getElementById('vlanInterfacesList');
+        container.innerHTML = '';
+        
+        if (allInterfaces.length === 0) {
+            container.innerHTML = '<p>Нет интерфейсов в этом VLAN</p>';
+            return;
+        }
+        
+        const list = document.createElement('ul');
+        list.className = 'interface-list';
+        
+        allInterfaces.forEach(intf => {
+            const item = document.createElement('li');
+            item.className = 'interface-item';
+            item.innerHTML = `
+                <span>${intf.name}</span>
+                <span class="interface-status ${intf.status}">${intf.status.toUpperCase()}</span>
+            `;
+            list.appendChild(item);
+        });
+        
+        container.appendChild(list);
+    }
+
+    // Обработка отправки формы
+    document.getElementById('vlanEditForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+        
+        const formData = {
+            id: document.getElementById('editVlanId').value,
+            name: document.getElementById('editVlanName').value,
+            description: document.getElementById('editVlanDescription').value,
+            port_mode: document.getElementById('editPortMode').value
+        };
+        
+        try {
+            const response = await fetch('/update-vlan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) throw new Error(result.message || 'Ошибка сервера');
+            if (!result.success) throw new Error(result.message || 'Не удалось обновить VLAN');
+            
+            showAlert('success', 'VLAN успешно обновлен!');
+            setTimeout(() => window.location.reload(), 1500);
+            
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showAlert('error', 'Ошибка при обновлении VLAN: ' + error.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    });
+        
+    </script>
+</body>
+</html>
+
+
+================================================================================
+Ф: C:\Users\yatma\Documents\Daytona-main + Huawei\app.py
+: 48197 bytes
+Т : 04/11/2025 23:21:56
+================================================================================
+
+
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify
+from device_connector import connect_and_collect_data
+import json
+from datetime import datetime
+from device_connector import update_interface_on_device
+from flask import Flask, render_template, session, redirect, url_for
+from netmiko import ConnectHandler, NetmikoTimeoutException, NetmikoAuthenticationException
+import re
+from datetime import datetime
+import logging
+from logging.handlers import RotatingFileHandler
+from device_connector import create_interface_on_device, connect_and_collect_data
+
+
+app = Flask(__name__, static_url_path='/static')
+app.secret_key = 'your-secret-key'  # Ваш секретный ключ
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 час
+
+handler = RotatingFileHandler('app.log', maxBytes=10000, backupCount=1)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+app.logger.addHandler(handler)
+app.logger.setLevel(logging.DEBUG)
+
+interfaces_store = [
+    {
+        'name': 'GigabitEthernet0/1',
+        'description': 'Сервер',
+        'status': 'up',
+        'vlan': 10,
+        'duplex': 'full',
+        'speed': '1 Gbps'
+    },
+    {
+        'name': 'GigabitEthernet0/2',
+        'description': 'Резерв',
+        'status': 'down',
+        'vlan': 20,
+        'duplex': 'auto',
+        'speed': '100 Mbps'
+    }
+]
+
+@app.route('/', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        device_data = {
+            'username': request.form['username'],
+            'password': request.form['password'],
+            'secret': request.form.get('secret', ''),  # Добавляем поле для enable password
+            'ip_address': request.form['ip_address'],
+            'device_type': request.form['device_type'],
+            'timestamp': datetime.now().isoformat()
+        }
+
+        # Сохраняем в сессии перед подключением (для индикатора загрузки)
+        session['device_data'] = device_data
+        session.pop('device_status', None)  # Очищаем предыдущие данные
+        
+        return redirect(url_for('connect_device'))  # Отдельный маршрут для подключения
+    
+    return render_template('login.html')
+
+@app.route('/connect-device')
+def connect_device():
+    if 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    # Получаем сохраненные данные
+    device_data = session['device_data']
+    
+    # Подключаемся и собираем ВСЕ данные
+    result = connect_and_collect_data(device_data)
+    
+    if result['status'] == 'error':
+        return render_template('error.html', 
+                             error_message=result['message'],
+                             device_data=device_data)
+    
+    # Сохраняем ВСЕ данные в сессии
+    session['device_status'] = json.dumps(result['data'])  # Сериализуем
+    session['last_update'] = datetime.now().isoformat()
+    
+    return redirect(url_for('device_status'))
+
+@app.route('/device-status')
+def device_status():
+    if 'device_status' not in session or 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    return render_template(
+        'device_status.html',
+        device_status=json.loads(session['device_status']),  # Десериализуем
+        device_data=session['device_data'],
+        last_update=session['last_update']
+    )
+
+
+@app.route('/interfaces')
+def interfaces():
+    if 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    device_type = session['device_data'].get('device_type', 'Cisco')
+    
+    # Используем данные из сессии, если они есть
+    if 'device_status' in session:
+        device_status = json.loads(session['device_status'])
+        if 'interfaces' in device_status:
+            return render_template('interfaces.html', interfaces=device_status['interfaces'])
+    
+    # Иначе генерируем тестовые данные
+    if device_type.lower() == 'huawei':
+        interfaces_data = [
+            {
+                'name': 'GigabitEthernet0/0/1',
+                'description': 'Uplink to core',
+                'status': 'up',
+                'vlan': 100,
+                'duplex': 'full',
+                'speed': '1000 Mbps'
+            },
+            {
+                'name': 'GigabitEthernet0/0/2',
+                'description': 'Access port',
+                'status': 'down',
+                'vlan': 200,
+                'duplex': 'auto',
+                'speed': '100 Mbps'
+            }
+        ]
+    else:
+        interfaces_data = [
+            {
+                'name': 'GigabitEthernet0/1',
+                'description': 'Сервер',
+                'status': 'up',
+                'vlan': 10,
+                'duplex': 'full',
+                'speed': '1 Gbps'
+            },
+            {
+                'name': 'GigabitEthernet0/2',
+                'description': 'Резерв',
+                'status': 'down',
+                'vlan': 20,
+                'duplex': 'auto',
+                'speed': '100 Mbps'
+            }
+        ]
+    
+    return render_template('interfaces.html', interfaces=interfaces_data)
+
+    
+@app.route('/update-interface', methods=['POST'])
+def update_interface():
+    if 'device_data' not in session:
+        return jsonify({'success': False, 'message': 'Требуется авторизация'}), 401
+    
+    try:
+        data = request.get_json()
+        device_data = session['device_data']
+        
+        # Вызываем функцию для обновления интерфейса на устройстве
+        success = update_interface_on_device(device_data, data)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Интерфейс успешно обновлен'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Не удалось обновить интерфейс на устройстве'
+            })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Ошибка: {str(e)}'
+        }), 500
+
+@app.route('/interface-details')
+def interface_details():
+    if 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    # Получаем список интерфейсов из сессии или генерируем тестовые
+    if 'device_status' in session:
+        device_status = json.loads(session['device_status'])
+        interfaces = device_status.get('interfaces', [])
+    else:
+        device_type = session['device_data'].get('device_type', 'Cisco')
+        interfaces = generate_test_interfaces(device_type)
+    
+    return render_template('interface_details.html', interfaces=interfaces)
+
+@app.route('/get-interface-details')
+def get_interface_details():
+    if 'device_data' not in session:
+        return jsonify({'error': 'Требуется авторизация'}), 401
+    
+    interface_name = request.args.get('name')
+    if not interface_name:
+        return jsonify({'error': 'Не указано имя интерфейса'}), 400
+    
+    device_data = session['device_data']
+    device_type = device_data.get('device_type', 'Cisco').lower()
+    
+    try:
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        device_params = {
+            'device_type': netmiko_device_type,
+            'host': device_data['ip_address'],
+            'username': device_data['username'],
+            'password': device_data['password'],
+            'secret': device_data.get('secret', ''),
+            'timeout': 20,
+            'session_timeout': 30,
+            'global_delay_factor': 2,
+            'session_log': 'netmiko_session.log'
+        }
+        
+        app.logger.info(f"Подключение к {device_data['ip_address']} для получения интерфейса {interface_name}")
+        connection = ConnectHandler(**device_params)
+        
+        try:
+            if device_data.get('secret'):
+                connection.enable()
+            
+            # Получаем детальную информацию об интерфейсе
+            if device_type == 'huawei':
+                details_cmd = f'display interface {interface_name}'
+            else:
+                details_cmd = f'show interface {interface_name}'
+            
+            app.logger.debug(f"Отправка команды: {details_cmd}")
+            details = connection.send_command(details_cmd, delay_factor=2)
+            app.logger.debug(f"Полученные данные:\n{details[:500]}...")  # Логируем первые 500 символов
+            
+            if not details:
+                raise ValueError("Пустой ответ от устройства")
+            
+            if device_type == 'huawei':
+                interface_data = parse_huawei_interface_details(details)
+            else:
+                interface_data = parse_cisco_interface_details(details)
+            
+            interface_data['name'] = interface_name
+            interface_data['raw_data'] = details[:1000]  # Для отладки
+            
+            app.logger.info(f"Успешно получены данные интерфейса {interface_name}")
+            return jsonify(interface_data)
+            
+        except Exception as e:
+            app.logger.error(f"Ошибка при получении данных интерфейса {interface_name}: {str(e)}", exc_info=True)
+            return jsonify({
+                'error': f'Не удалось получить данные интерфейса: {str(e)}',
+                'name': interface_name,
+                'device_type': device_type,
+                'suggestions': [
+                    'Проверьте правильность имени интерфейса',
+                    'Убедитесь, что устройство поддерживает команду',
+                    'Проверьте права доступа'
+                ]
+            }), 500
+            
+        finally:
+            connection.disconnect()
+            
+    except NetmikoAuthenticationException as auth_error:
+        app.logger.error(f"Ошибка аутентификации: {str(auth_error)}")
+        return jsonify({'error': 'Ошибка аутентификации'}), 401
+    except NetmikoTimeoutException as timeout_error:
+        app.logger.error(f"Таймаут подключения: {str(timeout_error)}")
+        return jsonify({'error': 'Таймаут подключения'}), 408
+    except Exception as e:
+        app.logger.error(f"Ошибка подключения: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Ошибка подключения: {str(e)}'}), 500
+
+def parse_cisco_interface_details(details):
+    """Парсинг деталей интерфейса для Cisco устройств с защитой от ошибок"""
+    def safe_regex(pattern, text, default='N/A'):
+        match = re.search(pattern, text)
+        return match.group(1).strip() if match else default
+
+    status = 'up' if 'line protocol is up' in details.lower() else 'down'
+    
+    return {
+        'description': safe_regex(r'Description: (.+)', details),
+        'status': status,
+        'type': safe_regex(r'Hardware is (.+?),', details),
+        'speed': safe_regex(r'BW (\d+)', details) + ' Kbps' if safe_regex(r'BW (\d+)', details) != 'N/A' else 'N/A',
+        'duplex': safe_regex(r'Duplex:(.+?),', details).lower(),
+        'mtu': safe_regex(r'MTU (\d+)', details, '1500'),
+        'mac_address': safe_regex(r'address is (.+?) ', details) or 
+                      safe_regex(r'Hardware(?: is|:)\s*(.+?)\s', details),
+        'ip_address': safe_regex(r'Internet address is (.+?)[,\s]', details),
+        'netmask': safe_regex(r'Internet address is .+?/(\d+)', details),
+        'last_input': safe_regex(r'Last input (.+?),', details),
+        'last_output': safe_regex(r'Last output (.+?),', details),
+        'input_rate': safe_regex(r'input rate (\d+)', details) + ' bps' if safe_regex(r'input rate (\d+)', details) != 'N/A' else 'N/A',
+        'output_rate': safe_regex(r'output rate (\d+)', details) + ' bps' if safe_regex(r'output rate (\d+)', details) != 'N/A' else 'N/A',
+        'input_errors': safe_regex(r'input errors (\d+)', details, '0'),
+        'output_errors': safe_regex(r'output errors (\d+)', details, '0')
+    }
+
+
+def parse_huawei_interface_details(details):
+    """Парсинг деталей интерфейса для Huawei устройств с защитой от ошибок"""
+    def safe_regex(pattern, text, default='N/A'):
+        match = re.search(pattern, text)
+        return match.group(1).strip() if match else default
+
+    status = 'up' if 'current state : up' in details.lower() else 'down'
+    
+    ip_info = safe_regex(r'Internet Address is (.+?)\s', details)
+    ip_parts = ip_info.split('/') if ip_info != 'N/A' else ['N/A', 'N/A']
+    
+    return {
+        'description': safe_regex(r'Description:(.+?)\n', details),
+        'status': status,
+        'type': safe_regex(r'Port Type:(.+?)\n', details),
+        'speed': safe_regex(r'Speed :(.+?),', details),
+        'duplex': safe_regex(r'Duplex :(.+?)\n', details).lower(),
+        'mtu': safe_regex(r'The Maximum Transmit Unit is (\d+)', details, '1500'),
+        'mac_address': safe_regex(r'Hardware address is (.+?)\s', details) or 
+                      safe_regex(r'Hardware addr is (.+?)\s', details),
+        'ip_address': ip_parts[0],
+        'netmask': ip_parts[1] if len(ip_parts) > 1 else 'N/A',
+        'last_input': safe_regex(r'Last 300 seconds input rate: (.+?) ', details) + ' bps' if safe_regex(r'Last 300 seconds input rate: (.+?) ', details) != 'N/A' else 'N/A',
+        'last_output': safe_regex(r'Last 300 seconds output rate: (.+?) ', details) + ' bps' if safe_regex(r'Last 300 seconds output rate: (.+?) ', details) != 'N/A' else 'N/A',
+        'input_rate': safe_regex(r'Input bandwidth utilization : (.+?)%', details) + '%' if safe_regex(r'Input bandwidth utilization : (.+?)%', details) != 'N/A' else 'N/A',
+        'output_rate': safe_regex(r'Output bandwidth utilization : (.+?)%', details) + '%' if safe_regex(r'Output bandwidth utilization : (.+?)%', details) != 'N/A' else 'N/A',
+        'input_errors': safe_regex(r'Input error: (\d+)', details, '0'),
+        'output_errors': safe_regex(r'Output error: (\d+)', details, '0')
+    }
+
+@app.route('/vlan-info')
+def vlan_info():
+    if 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    # Получаем базовую информацию об устройстве
+    device_info = {
+        'model': session.get('device_data', {}).get('device_type', 'Unknown'),
+        'software_version': 'N/A',
+        'ip_address': session.get('device_data', {}).get('ip_address', 'Unknown'),
+        'uptime': 'N/A'
+    }
+    
+    # Если есть данные устройства в сессии, используем их
+    if 'device_status' in session:
+        device_status = json.loads(session['device_status'])
+        device_info.update({
+            'software_version': device_status.get('configuration', {}).get('software_version', 'N/A'),
+            'uptime': device_status.get('configuration', {}).get('uptime', 'N/A')
+        })
+    
+    # Получаем информацию о VLAN (реальную или тестовую)
+    vlans = get_vlan_info(session['device_data'])
+    
+    return render_template('vlan_info.html', 
+                         device_info=device_info,
+                         vlans=vlans)
+
+def get_vlan_info(device_data):
+    """Получение реальной информации о VLAN с устройства"""
+    connection = None
+    try:
+        device_type = device_data.get('device_type', 'Cisco').lower()
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        
+        device_params = {
+            'device_type': netmiko_device_type,
+            'host': device_data['ip_address'],
+            'username': device_data['username'],
+            'password': device_data['password'],
+            'secret': device_data.get('secret', ''),
+            'timeout': 20,
+            'session_timeout': 30,
+            'global_delay_factor': 2,
+            'session_log': 'netmiko_vlan_session.log'
+        }
+        
+        app.logger.info(f"Подключение к {device_data['ip_address']} для получения VLAN информации")
+        connection = ConnectHandler(**device_params)
+        
+        try:
+            if device_data.get('secret'):
+                connection.enable()
+            
+            # Получаем информацию о VLAN
+            if device_type == 'huawei':
+                vlan_output = connection.send_command('display vlan', delay_factor=2)
+                svi_output = connection.send_command('display ip interface brief | include Vlanif', delay_factor=2)
+                vlans = parse_huawei_vlan_info(vlan_output, svi_output)
+            else:
+                vlan_output = connection.send_command('show vlan brief', delay_factor=2)
+                svi_output = connection.send_command('show ip interface brief | include Vlan', delay_factor=2)
+                vlans = parse_cisco_vlan_info(vlan_output, svi_output)
+            
+            app.logger.info(f"Успешно получены данные о VLAN")
+            return vlans
+            
+        except Exception as e:
+            app.logger.error(f"Ошибка при получении VLAN информации: {str(e)}", exc_info=True)
+            return []
+            
+        finally:
+            connection.disconnect()
+            
+    except NetmikoAuthenticationException as auth_error:
+        app.logger.error(f"Ошибка аутентификации: {str(auth_error)}")
+        return []
+    except NetmikoTimeoutException as timeout_error:
+        app.logger.error(f"Таймаут подключения: {str(timeout_error)}")
+        return []
+    except Exception as e:
+        app.logger.error(f"Ошибка подключения: {str(e)}", exc_info=True)
+        return []
+    
+def parse_cisco_vlan_info(vlan_output, svi_output):
+    """Парсинг информации о VLAN для Cisco устройств с портами"""
+    vlans = []
+    port_info = {}  # Для хранения информации о портах
+    
+    # Парсим основной вывод VLAN
+    for line in vlan_output.splitlines():
+        if re.match(r'^\d+\s+\w+', line):
+            parts = re.split(r'\s+', line.strip())
+            vlan_id = parts[0]
+            ports = ' '.join(parts[3:]) if len(parts) > 3 else ''
+            
+            vlans.append({
+                'id': vlan_id,
+                'name': parts[1],
+                'status': 'active' if parts[2].lower() == 'active' else 'inactive',
+                'port_mode': 'access',  # Будет уточнено ниже
+                'ports': ports,  # Добавляем порты
+                'access_vlan': vlan_id,
+                'allowed_vlans': None,
+                'mac_addresses': None,
+                'svi_ip': None
+            })
+            
+            # Сохраняем порты для этого VLAN
+            port_info[vlan_id] = ports
+    
+    # Получаем дополнительную информацию о портах из show interfaces switchport
+    try:
+        switchport_output = connection.send_command('show interfaces switchport', delay_factor=2)
+        # Здесь можно добавить парсинг для определения режима порта (access/trunk)
+    except Exception as e:
+        app.logger.error(f"Ошибка получения информации о switchport: {str(e)}")
+    
+    # Парсим SVI интерфейсы
+    svi_ips = {}
+    for line in svi_output.splitlines():
+        if 'Vlan' in line:
+            parts = re.split(r'\s+', line.strip())
+            vlan_id = parts[0].replace('Vlan', '')
+            svi_ips[vlan_id] = parts[1] if parts[1] != 'unassigned' else None
+    
+    # Обновляем SVI IP в VLAN информации
+    for vlan in vlans:
+        if vlan['id'] in svi_ips:
+            vlan['svi_ip'] = svi_ips[vlan['id']]
+    
+    return vlans
+
+def parse_huawei_vlan_info(vlan_output, svi_output):
+    """Парсинг информации о VLAN для Huawei устройств с портами"""
+    vlans = []
+    current_vlan = None
+    port_info = {}
+    
+    # Парсим основной вывод VLAN
+    for line in vlan_output.splitlines():
+        if line.startswith('VLAN ID:'):
+            if current_vlan:
+                vlans.append(current_vlan)
+            vlan_id = line.split(':')[1].strip()
+            current_vlan = {
+                'id': vlan_id,
+                'name': '',
+                'status': 'active',
+                'port_mode': 'hybrid',
+                'ports': '',  # Будет заполнено ниже
+                'access_vlan': None,
+                'allowed_vlans': None,
+                'mac_addresses': None,
+                'svi_ip': None
+            }
+        elif line.startswith('VLAN Name:'):
+            current_vlan['name'] = line.split(':')[1].strip()
+        elif 'Untagged' in line or 'Tagged' in line:
+            # Это строка с информацией о портах
+            port_type = 'Untagged' if 'Untagged' in line else 'Tagged'
+            ports = line.split(':')[1].strip()
+            current_vlan['ports'] += f"{port_type}: {ports} "
+    
+    if current_vlan:
+        vlans.append(current_vlan)
+    
+    # Парсим SVI интерфейсы
+    svi_ips = {}
+    for line in svi_output.splitlines():
+        if 'Vlanif' in line:
+            parts = re.split(r'\s+', line.strip())
+            vlan_id = parts[0].replace('Vlanif', '')
+            svi_ips[vlan_id] = parts[1] if parts[1] != 'unassigned' else None
+    
+    # Обновляем SVI IP в VLAN информации
+    for vlan in vlans:
+        if vlan['id'] in svi_ips:
+            vlan['svi_ip'] = svi_ips[vlan['id']]
+    
+    return vlans
+
+
+@app.route('/create-interface', methods=['POST'])
+def create_interface():
+    if 'device_data' not in session:
+        return jsonify({'success': False, 'message': 'Требуется авторизация'}), 401
+    
+    try:
+        data = request.get_json()
+        device_data = session['device_data']
+        
+        # Реальное создание интерфейса на устройстве
+        success, result = create_interface_on_device(device_data, data)
+        
+        if success:
+            # Обновляем данные устройства после изменения
+            result = connect_and_collect_data(device_data)
+            if result['status'] == 'success':
+                session['device_status'] = json.dumps(result['data'])
+                session['last_update'] = datetime.now().isoformat()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Интерфейс успешно создан',
+                'details': result
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Ошибка при создании интерфейса: {result}'
+            }), 500
+            
+    except Exception as e:
+        current_app.logger.error(f"Ошибка в create_interface: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Ошибка: {str(e)}'
+        }), 500
+
+@app.route('/vlan-details')
+def vlan_details():
+    if 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    device_info = {
+        'model': session['device_data'].get('device_type', 'Unknown'),
+        'software_version': 'N/A',
+        'ip_address': session['device_data'].get('ip_address', 'Unknown')
+    }
+    
+    if 'device_status' in session:
+        device_status = json.loads(session['device_status'])
+        device_info['software_version'] = device_status.get('configuration', {}).get('software_version', 'N/A')
+    
+    vlans = get_vlan_list(session['device_data'])
+    
+    return render_template('vlan_details.html',
+                         device_info=device_info,
+                         vlans=vlans)
+
+@app.route('/get-vlan-details')
+def get_vlan_details():
+    if 'device_data' not in session:
+        return jsonify({'error': 'Требуется авторизация'}), 401
+    
+    vlan_id = request.args.get('id')
+    if not vlan_id:
+        return jsonify({'error': 'Не указан ID VLAN'}), 400
+    
+    try:
+        vlan_details = get_real_vlan_details(session['device_data'], vlan_id)
+        return jsonify(vlan_details)
+    except Exception as e:
+        app.logger.error(f"Ошибка получения деталей VLAN: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+def get_vlan_list(device_data):
+    """Получаем список VLAN с устройства"""
+    connection = None
+    try:
+        device_type = device_data.get('device_type', 'Cisco').lower()
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        
+        connection = ConnectHandler(
+            device_type=netmiko_device_type,
+            host=device_data['ip_address'],
+            username=device_data['username'],
+            password=device_data['password'],
+            secret=device_data.get('secret', ''),
+            timeout=20
+        )
+        
+        if device_data.get('secret'):
+            connection.enable()
+        
+        if device_type == 'cisco':
+            output = connection.send_command('show vlan brief')
+            return parse_cisco_vlan_list(output)
+        else:
+            output = connection.send_command('display vlan')
+            return parse_huawei_vlan_list(output)
+            
+    except Exception as e:
+        app.logger.error(f"Ошибка получения списка VLAN: {str(e)}")
+        return []
+    finally:
+        if connection:
+            connection.disconnect()
+
+def get_real_vlan_details(device_data, vlan_id):
+    """Получаем детальную информацию о VLAN"""
+    connection = None
+    try:
+        device_type = device_data.get('device_type', 'Cisco').lower()
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        
+        connection = ConnectHandler(
+            device_type=netmiko_device_type,
+            host=device_data['ip_address'],
+            username=device_data['username'],
+            password=device_data['password'],
+            secret=device_data.get('secret', ''),
+            timeout=20
+        )
+        
+        if device_data.get('secret'):
+            connection.enable()
+        
+        if device_type == 'cisco':
+            vlan_output = connection.send_command(f'show vlan id {vlan_id}')
+            svi_output = connection.send_command(f'show interface Vlan{vlan_id}')
+            ports_output = connection.send_command(f'show interface status | include {vlan_id}')
+            return parse_cisco_vlan_details(vlan_id, vlan_output, svi_output, ports_output)
+        else:
+            vlan_output = connection.send_command(f'display vlan {vlan_id}')
+            svi_output = connection.send_command(f'display interface Vlanif{vlan_id}')
+            ports_output = connection.send_command(f'display interface brief | include {vlan_id}')
+            return parse_huawei_vlan_details(vlan_id, vlan_output, svi_output, ports_output)
+            
+    except Exception as e:
+        app.logger.error(f"Ошибка получения деталей VLAN {vlan_id}: {str(e)}")
+        raise Exception(f"Не удалось получить данные VLAN: {str(e)}")
+    finally:
+        if connection:
+            connection.disconnect()
+
+def parse_cisco_vlan_list(output):
+    """Парсим список VLAN для Cisco"""
+    vlans = []
+    for line in output.splitlines():
+        if re.match(r'^\d+\s+\w+', line):
+            parts = re.split(r'\s+', line.strip())
+            vlans.append({
+                'id': parts[0],
+                'name': parts[1],
+                'status': parts[2]
+            })
+    return vlans
+
+def parse_huawei_vlan_list(output):
+    """Парсим список VLAN для Huawei"""
+    vlans = []
+    current_vlan = None
+    
+    for line in output.splitlines():
+        if line.startswith('VLAN ID:'):
+            if current_vlan:
+                vlans.append(current_vlan)
+            current_vlan = {
+                'id': line.split(':')[1].strip(),
+                'name': '',
+                'status': 'active'
+            }
+        elif line.startswith('VLAN Name:'):
+            current_vlan['name'] = line.split(':')[1].strip()
+    
+    if current_vlan:
+        vlans.append(current_vlan)
+    
+    return vlans
+
+def parse_cisco_vlan_details(vlan_id, vlan_output, svi_output, ports_output):
+    """Парсим детали VLAN для Cisco"""
+    details = {
+        'id': vlan_id,
+        'name': '',
+        'status': 'active',
+        'description': '',
+        'ports': [],
+        'ip': '',
+        'netmask': '',
+        'mtu': '1500',
+        'dhcp': 'Disabled',
+        'mac': '',
+        'traffic_in': '0 bps',
+        'traffic_out': '0 bps'
+    }
+    
+    # Парсим основную информацию VLAN
+    for line in vlan_output.splitlines():
+        if 'Name' in line and not details['name']:
+            details['name'] = line.split('Name')[1].strip()
+    
+    # Парсим SVI интерфейс
+    for line in svi_output.splitlines():
+        if 'Internet address is' in line:
+            ip_parts = line.split('Internet address is')[1].strip().split('/')
+            details['ip'] = ip_parts[0]
+            if len(ip_parts) > 1:
+                details['netmask'] = f"/{ip_parts[1]}"
+        elif 'MTU' in line:
+            details['mtu'] = line.split('MTU')[1].split()[0]
+        elif 'Hardware is' in line:
+            details['mac'] = line.split('address is')[1].split()[0]
+    
+    # Парсим порты
+    for line in ports_output.splitlines():
+        if 'connected' in line.lower():
+            port = line.split()[0]
+            details['ports'].append(port)
+    
+    return details
+
+def parse_huawei_vlan_details(vlan_id, vlan_output, svi_output, ports_output):
+    """Парсим детали VLAN для Huawei"""
+    details = {
+        'id': vlan_id,
+        'name': '',
+        'status': 'active',
+        'description': '',
+        'ports': [],
+        'ip': '',
+        'netmask': '',
+        'mtu': '1500',
+        'dhcp': 'Disabled',
+        'mac': '',
+        'traffic_in': '0 bps',
+        'traffic_out': '0 bps'
+    }
+    
+    # Парсим основную информацию VLAN
+    for line in vlan_output.splitlines():
+        if 'VLAN Name:' in line:
+            details['name'] = line.split(':')[1].strip()
+        elif 'Description:' in line:
+            details['description'] = line.split(':')[1].strip()
+    
+    # Парсим SVI интерфейс
+    for line in svi_output.splitlines():
+        if 'Internet Address is' in line:
+            ip_parts = line.split('Internet Address is')[1].strip().split('/')
+            details['ip'] = ip_parts[0]
+            if len(ip_parts) > 1:
+                details['netmask'] = f"/{ip_parts[1]}"
+        elif 'The Maximum Transmit Unit is' in line:
+            details['mtu'] = line.split('is')[1].strip()
+        elif 'Hardware address is' in line:
+            details['mac'] = line.split('is')[1].strip()
+    
+    # Парсим порты
+    for line in ports_output.splitlines():
+        if 'up' in line.lower() or 'down' in line.lower():
+            port = line.split()[0]
+            details['ports'].append(port)
+    
+    return details
+
+
+@app.route('/update-vlan', methods=['POST'])
+def update_vlan():
+    if 'device_data' not in session:
+        return jsonify({'success': False, 'message': 'Требуется авторизация'}), 401
+    
+    try:
+        data = request.get_json()
+        device_data = session['device_data']
+        device_type = device_data.get('device_type', 'Cisco').lower()
+        
+        # Подключаемся к устройству
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        connection = ConnectHandler(
+            device_type=netmiko_device_type,
+            host=device_data['ip_address'],
+            username=device_data['username'],
+            password=device_data['password'],
+            secret=device_data.get('secret', ''),
+            timeout=20
+        )
+        
+        try:
+            connection.enable()
+            
+            if device_type == 'cisco':
+                commands = [
+                    f"vlan {data['id']}",
+                    f"name {data['name']}",
+                    f"description {data['description']}" if data.get('description') else "no description",
+                ]
+            else:  # Huawei
+                commands = [
+                    f"vlan {data['id']}",
+                    f"description {data['description']}" if data.get('description') else "undo description",
+                    f"name {data['name']}",
+                ]
+            
+            # Применяем команды
+            output = connection.send_config_set(commands)
+            
+            # Для режима порта обновляем все интерфейсы этого VLAN
+            if data.get('port_mode'):
+                interfaces = get_interfaces_for_vlan(connection, data['id'], device_type)
+                for intf in interfaces:
+                    if device_type == 'cisco':
+                        cmd = [
+                            f"interface {intf}",
+                            f"switchport mode {data['port_mode']}",
+                            f"switchport access vlan {data['id']}" if data['port_mode'] == 'access' else "",
+                        ]
+                    else:  # Huawei
+                        cmd = [
+                            f"interface {intf}",
+                            f"port link-type {data['port_mode']}",
+                            f"port default vlan {data['id']}" if data['port_mode'] == 'access' else "",
+                        ]
+                    connection.send_config_set(cmd)
+            
+            # Сохраняем конфигурацию
+            if device_type == 'cisco':
+                connection.send_command('write memory')
+            else:  # Huawei
+                connection.send_command('save force')
+            
+            return jsonify({
+                'success': True,
+                'message': 'VLAN успешно обновлен',
+                'output': output
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'Ошибка на устройстве: {str(e)}',
+                'suggestions': [
+                    'Проверьте правильность параметров VLAN',
+                    'Убедитесь, что VLAN существует',
+                    'Проверьте права доступа'
+                ]
+            })
+        finally:
+            connection.disconnect()
+            
+    except NetmikoAuthenticationException:
+        return jsonify({'success': False, 'message': 'Ошибка аутентификации'}), 401
+    except NetmikoTimeoutException:
+        return jsonify({'success': False, 'message': 'Таймаут подключения'}), 408
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Ошибка сервера: {str(e)}'
+        }), 500
+    
+def get_interfaces_for_vlan(connection, vlan_id, device_type):
+    """Получаем список интерфейсов для указанного VLAN"""
+    try:
+        if device_type == 'cisco':
+            output = connection.send_command(f"show vlan id {vlan_id}")
+            interfaces = []
+            for line in output.splitlines():
+                if re.match(r'^\s*[A-Za-z]+\d+/\d+', line):
+                    interfaces.append(line.split()[0])
+            return interfaces
+        else:  # Huawei
+            output = connection.send_command(f"display vlan {vlan_id}")
+            interfaces = []
+            for line in output.splitlines():
+                if 'Untagged' in line or 'Tagged' in line:
+                    ports = line.split(':')[1].strip().split()
+                    interfaces.extend(ports)
+            return interfaces
+    except Exception:
+        return []
+
+@app.route('/routing-table')
+def routing_table():
+    if 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    device_info = {
+        'model': session['device_data'].get('device_type', 'Unknown'),
+        'software_version': 'N/A',
+        'ip_address': session['device_data'].get('ip_address', 'Unknown'),
+        'uptime': 'N/A'
+    }
+    
+    if 'device_status' in session:
+        device_status = json.loads(session['device_status'])
+        device_info['software_version'] = device_status.get('configuration', {}).get('software_version', 'N/A')
+        device_info['uptime'] = device_status.get('configuration', {}).get('uptime', 'N/A')
+    
+    # Получаем таблицу маршрутизации
+    routing_table = get_routing_table(session['device_data'])
+    
+    return render_template('routing_table.html',
+                         device_info=device_info,
+                         routing_table=routing_table)
+
+@app.route('/refresh-routing-table')
+def refresh_routing_table():
+    if 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    # Обновляем данные устройства
+    result = connect_and_collect_data(session['device_data'])
+    if result['status'] == 'success':
+        session['device_status'] = json.dumps(result['data'])
+        session['last_update'] = datetime.now().isoformat()
+    
+    return redirect(url_for('routing_table'))
+
+def get_routing_table(device_data):
+    """Получение таблицы маршрутизации с устройства"""
+    connection = None
+    try:
+        device_type = device_data.get('device_type', 'Cisco').lower()
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        
+        connection = ConnectHandler(
+            device_type=netmiko_device_type,
+            host=device_data['ip_address'],
+            username=device_data['username'],
+            password=device_data['password'],
+            secret=device_data.get('secret', ''),
+            timeout=20
+        )
+        
+        if device_data.get('secret'):
+            connection.enable()
+        
+        if device_type == 'cisco':
+            output = connection.send_command('show ip route')
+            return parse_cisco_routing_table(output)
+        else:
+            output = connection.send_command('display ip routing-table')
+            return parse_huawei_routing_table(output)
+            
+    except Exception as e:
+        app.logger.error(f"Ошибка получения таблицы маршрутизации: {str(e)}")
+        return []
+    finally:
+        if connection:
+            connection.disconnect()
+
+def parse_cisco_routing_table(output):
+    """Парсинг таблицы маршрутизации Cisco"""
+    routes = []
+    for line in output.splitlines():
+        if line.startswith(('C', 'D', 'S', 'O', 'R', 'i')):
+            parts = line.split()
+            route = {
+                'type': parts[0],
+                'network': parts[1],
+                'mask': parts[2] if len(parts) > 2 else '255.255.255.255',
+                'admin_distance': parts[3].strip('[]') if '[' in parts[3] else '',
+                'metric': parts[4].strip('/') if '/' in parts[4] else '',
+                'next_hop': parts[5] if len(parts) > 5 else '',
+                'interface': parts[6] if len(parts) > 6 else '',
+                'time': parts[7] if len(parts) > 7 else ''
+            }
+            routes.append(route)
+    return routes
+
+def parse_huawei_routing_table(output):
+    """Парсинг таблицы маршрутизации Huawei"""
+    routes = []
+    for line in output.splitlines():
+        if line.startswith(('D', 'C', 'S', 'O', 'R', 'i')):
+            parts = line.split()
+            route = {
+                'type': parts[0],
+                'network': parts[1].split('/')[0],
+                'mask': parts[1].split('/')[1] if '/' in parts[1] else '32',
+                'admin_distance': parts[2],
+                'metric': parts[3],
+                'next_hop': parts[4] if len(parts) > 4 else '',
+                'interface': parts[5] if len(parts) > 5 else '',
+                'time': parts[6] if len(parts) > 6 else ''
+            }
+            routes.append(route)
+    return routes
+
+@app.route('/mac-table')
+def mac_table():
+    if 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    device_info = {
+        'model': session['device_data'].get('device_type', 'Unknown'),
+        'software_version': 'N/A',
+        'ip_address': session['device_data'].get('ip_address', 'Unknown'),
+        'uptime': 'N/A'
+    }
+    
+    if 'device_status' in session:
+        device_status = json.loads(session['device_status'])
+        device_info['software_version'] = device_status.get('configuration', {}).get('software_version', 'N/A')
+        device_info['uptime'] = device_status.get('configuration', {}).get('uptime', 'N/A')
+    
+    # Получаем таблицу коммутации
+    mac_table = get_mac_table(session['device_data'])
+    
+    return render_template('mac_table.html',
+                         device_info=device_info,
+                         mac_table=mac_table,
+                         last_update=session.get('last_update', 'N/A'))
+
+@app.route('/refresh-mac-table')
+def refresh_mac_table():
+    if 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    # Обновляем данные устройства
+    result = connect_and_collect_data(session['device_data'])
+    if result['status'] == 'success':
+        session['device_status'] = json.dumps(result['data'])
+        session['last_update'] = datetime.now().isoformat()
+    
+    return redirect(url_for('mac_table'))
+
+def get_mac_table(device_data):
+    """Получение MAC-таблицы с устройства"""
+    connection = None
+    try:
+        device_type = device_data.get('device_type', 'Cisco').lower()
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        
+        connection = ConnectHandler(
+            device_type=netmiko_device_type,
+            host=device_data['ip_address'],
+            username=device_data['username'],
+            password=device_data['password'],
+            secret=device_data.get('secret', ''),
+            timeout=20
+        )
+        
+        if device_data.get('secret'):
+            connection.enable()
+        
+        if device_type == 'cisco':
+            output = connection.send_command('show mac address-table', delay_factor=2)
+            return parse_cisco_mac_table(output)
+        else:
+            output = connection.send_command('display mac-address', delay_factor=2)
+            return parse_huawei_mac_table(output)
+            
+    except Exception as e:
+        app.logger.error(f"Ошибка получения MAC-таблицы: {str(e)}")
+        return None
+    finally:
+        if connection:
+            connection.disconnect()
+
+@app.route('/arp-table')
+def arp_table():
+    if 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    device_info = {
+        'model': session['device_data'].get('device_type', 'Unknown'),
+        'software_version': 'N/A',
+        'ip_address': session['device_data'].get('ip_address', 'Unknown'),
+        'uptime': 'N/A'
+    }
+    
+    if 'device_status' in session:
+        device_status = json.loads(session['device_status'])
+        device_info['software_version'] = device_status.get('configuration', {}).get('software_version', 'N/A')
+        device_info['uptime'] = device_status.get('configuration', {}).get('uptime', 'N/A')
+    
+    # Получаем ARP таблицу
+    arp_table = get_arp_table(session['device_data'])
+    
+    return render_template('arp_table.html',
+                         device_info=device_info,
+                         arp_table=arp_table,
+                         last_update=session.get('last_update', 'N/A'))
+
+@app.route('/refresh-arp-table')
+def refresh_arp_table():
+    if 'device_data' not in session:
+        return redirect(url_for('login'))
+    
+    # Обновляем данные устройства
+    result = connect_and_collect_data(session['device_data'])
+    if result['status'] == 'success':
+        session['device_status'] = json.dumps(result['data'])
+        session['last_update'] = datetime.now().isoformat()
+    
+    return redirect(url_for('arp_table'))
+
+def get_arp_table(device_data):
+    """Получение ARP таблицы с устройства"""
+    connection = None
+    try:
+        device_type = device_data.get('device_type', 'Cisco').lower()
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        
+        connection = ConnectHandler(
+            device_type=netmiko_device_type,
+            host=device_data['ip_address'],
+            username=device_data['username'],
+            password=device_data['password'],
+            secret=device_data.get('secret', ''),
+            timeout=20
+        )
+        
+        if device_data.get('secret'):
+            connection.enable()
+        
+        if device_type == 'cisco':
+            output = connection.send_command('show arp', delay_factor=2)
+            return parse_cisco_arp_table(output)
+        else:
+            output = connection.send_command('display arp', delay_factor=2)
+            return parse_huawei_arp_table(output)
+            
+    except Exception as e:
+        app.logger.error(f"Ошибка получения ARP таблицы: {str(e)}")
+        return None
+    finally:
+        if connection:
+            connection.disconnect()
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+================================================================================
+Ф: C:\Users\yatma\Documents\Daytona-main + Huawei\device_connector.py
+: 41356 bytes
+Т : 04/11/2025 23:22:06
+================================================================================
+
+
+import random
+import time
+from datetime import datetime
+from netmiko import ConnectHandler, NetmikoTimeoutException, NetmikoAuthenticationException
+import re
+from datetime import datetime
+import logging
+
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('device_connector.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Тестовые учетные данные (для имитации успешной аутентификации)
+TEST_CREDENTIALS = {
+    "admin": "cisco123",
+    "user": "password123",
+    "test": "test123"
+}
+
+def connect_and_collect_data(device_data):
+    """Реальное подключение к устройству через SSH с улучшенной обработкой ошибок"""
+    connection = None
+    try:
+        device_type = device_data.get('device_type', 'Cisco').lower()
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        
+        device_params = {
+            'device_type': netmiko_device_type,
+            'host': device_data['ip_address'],
+            'username': device_data['username'],
+            'password': device_data['password'],
+            'secret': device_data.get('secret', ''),
+            'timeout': 15,
+            'session_timeout': 30,
+            'banner_timeout': 15,
+        }
+        
+        print(f"Попытка подключения к {device_data['ip_address']}...")
+        connection = ConnectHandler(**device_params)
+        
+        if device_data.get('secret'):
+            try:
+                connection.enable()
+            except Exception as e:
+                return {
+                    'status': 'error',
+                    'message': f'Ошибка enable режима: {str(e)}'
+                }
+        
+        print("Собираем данные с устройства...")
+        collected_data = collect_real_device_data(connection, device_data)
+        
+        return {
+            'status': 'success',
+            'data': collected_data
+        }
+            
+    except NetmikoAuthenticationException as auth_error:
+        error_msg = 'Ошибка аутентификации: неверный логин/пароль'
+        if 'enable' in str(auth_error):
+            error_msg += ' (или неверный enable пароль)'
+        return {
+            'status': 'error',
+            'message': error_msg
+        }
+    except NetmikoTimeoutException:
+        return {
+            'status': 'error',
+            'message': 'Таймаут подключения: устройство недоступно'
+        }
+    except Exception as e:
+        return {
+            'status': 'error',
+            'message': f'Ошибка подключения: {str(e)}'
+        }
+    finally:
+        if connection:
+            try:
+                connection.disconnect()
+            except:
+                pass
+    
+def parse_uptime(uptime_str):
+    """Парсим время работы устройства"""
+    # Пример: "router uptime is 1 week, 2 days, 3 hours, 4 minutes"
+    return uptime_str.split('is')[-1].strip() if uptime_str else "N/A"
+
+def parse_cpu(cpu_str):
+    """Парсим загрузку CPU"""
+    # Пример: "CPU utilization for five seconds: 10%/0%"
+    match = re.search(r'(\d+)%', cpu_str)
+    return f"{match.group(1)}%" if match else "0%"
+
+def parse_memory(memory_str):
+    """Парсим использование памяти"""
+    try:
+        # Пример для Cisco: "Processor memory: 1000000K total, 300000K used, 700000K free"
+        total_match = re.search(r'total\s*:\s*(\d+)', memory_str)
+        used_match = re.search(r'used\s*:\s*(\d+)', memory_str)
+        
+        if total_match and used_match:
+            total = int(total_match.group(1))
+            used = int(used_match.group(1))
+            percent = (used / total) * 100
+            return f"{used}K/{total}K ({int(percent)}%)"
+        
+        return "N/A"
+    except Exception:
+        return "N/A"
+    
+def get_temperature(connection, device_type):
+    """Получение температуры устройства с обработкой ошибок"""
+    try:
+        if device_type and device_type.lower() == 'cisco':
+            temp_output = send_command_safe(connection, 'show environment temperature')
+            if 'invalid' in temp_output.lower():
+                return "N/A"
+            
+            match = re.search(r'Temperature:\s*(\d+)\s*C', temp_output, re.IGNORECASE)
+            return f"{match.group(1)}°C" if match else "N/A"
+        
+        elif device_type and device_type.lower() == 'huawei':
+            temp_output = send_command_safe(connection, 'display temperature all')
+            match = re.search(r'Temperature\s*:\s*(\d+)', temp_output)
+            return f"{match.group(1)}°C" if match else "N/A"
+        
+        return "N/A"
+    except Exception:
+        return "N/A"
+    
+def send_command_safe(connection, command, delay=1):
+    """Безопасная отправка команд с задержкой"""
+    time.sleep(delay)
+    return connection.send_command(command, delay_factor=2)
+
+def get_gateway(connection):
+    """Получение шлюза по умолчанию"""
+    try:
+        route_output = connection.send_command('show ip route')
+        match = re.search(r'via\s+([\d.]+)', route_output)
+        return match.group(1) if match else "N/A"
+    except Exception:
+        return "N/A"   
+    
+def collect_real_device_data(connection, device_data):
+    """Сбор реальных данных с устройства"""
+    start_time = datetime.now()  # Фиксируем время начала сбора данных
+    
+    hostname = connection.find_prompt().replace('#', '').replace('>', '')
+    
+    uptime_output = connection.send_command('show version | include uptime')
+    uptime = parse_uptime(uptime_output)
+    
+    version_output = connection.send_command('show version | include Software')
+    software_version = version_output.split(',')[0].strip() if version_output else "N/A"
+    
+    cpu_output = connection.send_command('show processes cpu | include CPU')
+    cpu_load = parse_cpu(cpu_output)
+    
+    memory_output = connection.send_command('show memory statistics')
+    memory_usage = parse_memory(memory_output)
+    
+    interfaces_output = connection.send_command('show ip interface brief')
+    interfaces = parse_interfaces(connection, interfaces_output)  # Передаем connection для доп. информации
+    for intf in interfaces:
+        try:
+            # Получаем детальную информацию об интерфейсе
+            details = connection.send_command(f'show interface {intf["name"]}', delay_factor=2)
+            
+            # Парсим дополнительные параметры
+            intf.update({
+                'type': re.search(r'Hardware is (.+?),', details).group(1) if 'Hardware is' in details else 'N/A',
+                'mtu': re.search(r'MTU (\d+)', details).group(1) if 'MTU' in details else '1500',
+                'mac_address': re.search(r'address is (.+?) ', details).group(1) if 'address is' in details else 
+                              (re.search(r'HWaddr (.+)', details).group(1) if 'HWaddr' in details else 'N/A'),
+                'last_input': re.search(r'Last input (.+?),', details).group(1) if 'Last input' in details else 'N/A',
+                'last_output': re.search(r'Last output (.+?),', details).group(1) if 'Last output' in details else 'N/A',
+                'input_rate': re.search(r'input rate (\d+)', details).group(1) + ' bps' if 'input rate' in details else 'N/A',
+                'output_rate': re.search(r'output rate (\d+)', details).group(1) + ' bps' if 'output rate' in details else 'N/A',
+                'input_errors': re.search(r'input errors (\d+)', details).group(1) if 'input errors' in details else '0',
+                'output_errors': re.search(r'output errors (\d+)', details).group(1) if 'output errors' in details else '0'
+            })
+            
+            # Для Huawei устройств парсим по-другому
+            if device_data.get('device_type', '').lower() == 'huawei':
+                huawei_details = connection.send_command(f'display interface {intf["name"]}', delay_factor=2)
+                if 'Last 300 seconds input rate' in huawei_details:
+                    intf.update({
+                        'input_rate': re.search(r'Last 300 seconds input rate: (.+?) ', huawei_details).group(1),
+                        'output_rate': re.search(r'Last 300 seconds output rate: (.+?) ', huawei_details).group(1)
+                    })
+                
+        except Exception as e:
+            print(f"Ошибка при получении деталей интерфейса {intf['name']}: {str(e)}")
+            continue
+
+    # Рассчитываем время выполнения
+    exec_time = (datetime.now() - start_time).total_seconds()
+    
+    return {
+        'monitoring': {
+            'cpu_load': cpu_load,
+            'memory_usage': memory_usage,
+            'temperature': get_temperature(connection, device_data.get('device_type'))
+        },
+        'configuration': {
+            'hostname': hostname,
+            'gateway': get_gateway(connection),
+            'software_version': software_version,
+            'uptime': uptime
+        },
+        'interfaces': interfaces,
+        'connection_time': f"{exec_time:.2f} сек"
+    }
+
+def parse_interfaces(connection, interfaces_str):
+    """Парсим список интерфейсов с дополнительной информацией"""
+    interfaces = []
+    for line in interfaces_str.splitlines()[1:]:  # Пропускаем заголовок
+        if line.strip():
+            parts = line.split()
+            if len(parts) >= 6:
+                interface_name = parts[0]
+                interface = {
+                    'name': interface_name,
+                    'ip': parts[1] if parts[1] != 'unassigned' else 'N/A',
+                    'status': parts[4].lower(),
+                    'protocol': parts[5].lower(),
+                    'description': '',
+                    'vlan': '1',
+                    'duplex': 'auto',
+                    'speed': 'auto'
+                }
+                
+                try:
+                    # Получаем подробную информацию об интерфейсе
+                    details = connection.send_command(f'show interface {interface_name}', delay_factor=2)
+                    
+                    # Парсим описание
+                    desc_match = re.search(r'Description:\s*(.+?)\n', details)
+                    if desc_match:
+                        interface['description'] = desc_match.group(1).strip()
+                    
+                    # Парсим VLAN (для Cisco)
+                    vlan_match = re.search(r'access vlan\s+(\d+)', details)
+                    if vlan_match:
+                        interface['vlan'] = vlan_match.group(1)
+                    
+                    # Парсим дуплекс и скорость
+                    duplex_match = re.search(r'Duplex:\s*(\w+)', details)
+                    if duplex_match:
+                        interface['duplex'] = duplex_match.group(1).lower()
+                    
+                    speed_match = re.search(r'BW\s*(\d+)\s*\w+', details)
+                    if speed_match:
+                        speed = int(speed_match.group(1))
+                        interface['speed'] = f"{speed} Mbps" if speed < 1000 else "1 Gbps"
+                    
+                except Exception as e:
+                    print(f"Ошибка при получении деталей интерфейса {interface_name}: {str(e)}")
+                
+                interfaces.append(interface)
+    return interfaces
+
+
+
+def generate_cisco_response(device_data):
+    """Генерация тестовых данных для Cisco"""
+    ip = device_data.get('ip_address', '192.168.1.1')
+    return {
+        'status': 'success',
+        'data': {
+            'monitoring': {
+                'cpu_load': f"{random.randint(5, 45)}%",
+                'memory_usage': f"{random.randint(200, 500)}/1024 MB ({random.randint(20, 50)}%)",
+                'temperature': f"{random.randint(35, 55)}°C"
+            },
+            'configuration': {
+                'hostname': f"SW-{random.randint(100, 999)}",
+                'gateway': f"{'.'.join(ip.split('.')[:3])}.1",
+                'software_version': "15.2(4)M7",
+                'uptime': f"{random.randint(1, 30)} дней"
+            },
+            'interfaces': generate_cisco_interfaces(ip),
+            'connection_time': f"{random.uniform(0.8, 2.5):.2f} сек"
+        }
+    }
+
+def generate_cisco_interfaces(base_ip):
+    """Генерация тестовых интерфейсов Cisco"""
+    ip_parts = base_ip.split('.')
+    return [
+        {
+            'name': 'GigabitEthernet0/1',
+            'description': 'Сервер',
+            'status': 'up',
+            'vlan': 10,
+            'duplex': 'full',
+            'speed': '1000'
+        },
+        {
+            'name': 'GigabitEthernet0/2',
+            'description': 'Резерв',
+            'status': 'down',
+            'vlan': 20,
+            'duplex': 'auto',
+            'speed': '100'
+        }
+    ]
+
+def generate_huawei_response(device_data):
+    """Генерация тестовых данных для Huawei"""
+    ip = device_data.get('ip_address', '192.168.1.1')
+    return {
+        'status': 'success',
+        'data': {
+            'monitoring': {
+                'cpu_load': f"{random.randint(5, 30)}%",
+                'memory_usage': f"{random.randint(300, 800)}/2048 MB ({random.randint(15, 40)}%)",
+                'temperature': f"{random.randint(30, 45)}°C"
+            },
+            'configuration': {
+                'hostname': f"HW-{random.randint(100, 999)}",
+                'gateway': f"{'.'.join(ip.split('.')[:3])}.254",
+                'software_version': f"V200R0{random.randint(1, 9)}C00SPC{random.randint(1, 5)}00",
+                'uptime': f"{random.randint(1, 60)} дней"
+            },
+            'interfaces': generate_huawei_interfaces(ip),
+            'connection_time': f"{random.uniform(0.5, 1.5):.2f} сек"
+        }
+    }
+
+def generate_huawei_interfaces(base_ip):
+    """Генерация интерфейсов Huawei"""
+    return [
+        {
+            'name': 'GigabitEthernet0/0/1',
+            'description': 'Uplink to core',
+            'status': 'up',
+            'vlan': random.randint(1, 100),
+            'duplex': 'full',
+            'speed': '1000'
+        },
+        {
+            'name': 'GigabitEthernet0/0/2',
+            'description': 'Access port',
+            'status': random.choice(['up', 'down']),
+            'vlan': random.randint(101, 200),
+            'duplex': 'auto',
+            'speed': '100'
+        }
+    ]
+
+
+def generate_successful_response(device_data):
+    """Генерация успешного ответа с тестовыми данными"""
+    ip = device_data.get('ip_address', '192.168.1.1')
+    return {
+        'status': 'success',
+        'data': {
+            'monitoring': {
+                'cpu_load': f"{random.randint(5, 45)}%",
+                'memory_usage': f"{random.randint(200, 500)}/1024 MB ({random.randint(20, 50)}%)",
+                'temperature': f"{random.randint(35, 55)}°C"
+            },
+            'configuration': {
+                'hostname': f"SW-{random.randint(100, 999)}",
+                'gateway': f"{'.'.join(ip.split('.')[:3])}.1",
+                'software_version': "15.2(4)M7",
+                'uptime': f"{random.randint(1, 30)} дней"
+            },
+            'interfaces': generate_interfaces(ip),
+            'connection_time': f"{random.uniform(0.8, 2.5):.2f} сек"
+        }
+    }
+
+def generate_interfaces(base_ip):
+    """Генерация тестовых интерфейсов"""
+    ip_parts = base_ip.split('.')
+    return [
+        {
+            'name': 'GigabitEthernet0/0',
+            'ip': base_ip,
+            'status': 'up',
+            'protocol': 'up'
+        },
+        {
+            'name': 'GigabitEthernet0/1',
+            'ip': f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.{random.randint(2, 254)}",
+            'status': random.choice(['up', 'down']),
+            'protocol': random.choice(['up', 'down'])
+        }
+    ]
+
+# В device_connector.py
+def update_interface_on_device(device_data, interface_data):
+    """Обновление интерфейса на сетевом устройстве с улучшенной обработкой ошибок
+    
+    Args:
+        device_data (dict): Данные для подключения к устройству
+        interface_data (dict): Параметры интерфейса для обновления
+    
+    Returns:
+        bool: True если обновление прошло успешно, False в случае ошибки
+    """
+    connection = None
+    try:
+        # Определяем тип устройства
+        device_type = device_data.get('device_type', 'Cisco').lower()
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        
+        # Параметры подключения
+        device_params = {
+            'device_type': netmiko_device_type,
+            'host': device_data['ip_address'],
+            'username': device_data['username'],
+            'password': device_data['password'],
+            'secret': device_data.get('secret', ''),
+            'timeout': 20,  # Увеличенный таймаут
+            'session_timeout': 30,
+            'banner_timeout': 15,
+            'global_delay_factor': 2,  # Увеличенные задержки
+        }
+        
+        print(f"Подключение для обновления интерфейса {interface_data['interface_name']}...")
+        
+        # Подключаемся к устройству
+        connection = ConnectHandler(**device_params)
+        
+        # Включаем режим enable если требуется
+        if device_data.get('secret'):
+            try:
+                connection.enable()
+            except Exception as enable_error:
+                print(f"Ошибка входа в enable режим: {str(enable_error)}")
+                return False
+        
+        # Формируем команды в зависимости от типа устройства
+        if device_type == 'huawei':
+            commands = [
+                f"interface {interface_data['interface_name']}",
+                f"description {interface_data['description']}",
+                f"port default vlan {interface_data['vlan']}",
+                "undo shutdown" if interface_data['status'] == 'up' else "shutdown"
+            ]
+        else:  # Cisco и другие
+            commands = [
+                f"interface {interface_data['interface_name']}",
+                f"description {interface_data['description']}",
+                f"switchport access vlan {interface_data['vlan']}",
+                "no shutdown" if interface_data['status'] == 'up' else "shutdown"
+            ]
+        
+        print(f"Отправка команд: {commands}")
+        
+        # Отправляем команды с увеличенными задержками
+        try:
+            # Входим в режим конфигурации
+            connection.config_mode()
+            
+            # Отправляем команды по одной с проверкой
+            for cmd in commands:
+                output = connection.send_command(
+                    cmd,
+                    delay_factor=2,
+                    expect_string=r'#|\]|>',  # Ожидаемые промпты
+                    strip_prompt=False,
+                    strip_command=False
+                )
+                print(f"Команда: {cmd}\nРезультат: {output[:200]}...")  # Логируем первые 200 символов
+            
+            # Выходим из режима конфигурации
+            connection.exit_config_mode()
+            
+            # Для Cisco сохраняем конфигурацию
+            if device_type == 'cisco':
+                save_output = connection.send_command(
+                    'write memory',
+                    delay_factor=2,
+                    expect_string=r'#|\]|>'
+                )
+                print(f"Сохранение конфигурации: {save_output[:200]}...")
+            
+            return True
+            
+        except Exception as cmd_error:
+            print(f"Ошибка выполнения команд: {str(cmd_error)}")
+            return False
+            
+    except NetmikoAuthenticationException as auth_error:
+        print(f"Ошибка аутентификации: {str(auth_error)}")
+        return False
+    except NetmikoTimeoutException as timeout_error:
+        print(f"Таймаут подключения: {str(timeout_error)}")
+        return False
+    except Exception as e:
+        print(f"Общая ошибка: {str(e)}")
+        return False
+    finally:
+        # Всегда закрываем соединение
+        if connection:
+            try:
+                connection.disconnect()
+                print("Соединение закрыто")
+            except Exception as disconnect_error:
+                print(f"Ошибка при закрытии соединения: {str(disconnect_error)}")
+
+
+def get_device_type(device_type):
+    """Фиктивная функция для тестов"""
+    return "cisco_ios"
+
+def get_real_vlan_info(connection, device_type):
+    """Получение реальной информации о VLAN с устройства"""
+    vlans = []
+    
+    try:
+        if device_type.lower() == 'cisco':
+            # Для Cisco устройств
+            vlan_output = connection.send_command('show vlan brief')
+            svi_output = connection.send_command('show ip interface brief | include Vlan')
+            
+            # Парсинг вывода (упрощенный пример)
+            # Здесь должен быть ваш парсинг реального вывода команд
+            
+        elif device_type.lower() == 'huawei':
+            # Для Huawei устройств
+            vlan_output = connection.send_command('display vlan')
+            svi_output = connection.send_command('display ip interface brief | include Vlanif')
+            
+            # Парсинг вывода (упрощенный пример)
+            
+        # Формирование списка VLAN на основе распарсенных данных
+        
+    except Exception as e:
+        print(f"Ошибка получения VLAN информации: {str(e)}")
+    
+    return vlans
+
+import logging
+
+# Создаем логгер для этого модуля
+logger = logging.getLogger(__name__)
+
+def create_interface_on_device(device_data, interface_data):
+    """Создание интерфейса на Cisco устройстве с правильным форматом имен"""
+    connection = None
+    try:
+        device_params = {
+            'device_type': 'cisco_ios',
+            'host': device_data['ip_address'],
+            'username': device_data['username'],
+            'password': device_data['password'],
+            'secret': device_data.get('secret', ''),
+            'timeout': 20,
+            'session_timeout': 30,
+            'global_delay_factor': 2,
+            'session_log': 'netmiko_create_interface.log'
+        }
+        
+        logger.info(f"Подключение для создания интерфейса {interface_data['name']}")
+        connection = ConnectHandler(**device_params)
+        
+        try:
+            if device_data.get('secret'):
+                connection.enable()
+            
+            commands = []
+            # Форматируем имя интерфейса с пробелом
+            interface_name = format_interface_name(interface_data['name'])
+            commands.append(f"interface {interface_name}")
+            
+            # Настройка IP-адреса
+            if interface_data.get('ip_address'):
+                commands.append(f"ip address {interface_data['ip_address']} {interface_data['netmask']}")
+            
+            # Описание интерфейса
+            if interface_data.get('description'):
+                commands.append(f"description {interface_data['description']}")
+            
+            # MTU
+            if interface_data.get('mtu'):
+                commands.append(f"mtu {interface_data['mtu']}")
+            
+            # Полоса пропускания
+            if interface_data.get('bandwidth'):
+                commands.append(f"bandwidth {interface_data['bandwidth']}")
+            
+            # Режим дуплекса
+            if interface_data.get('duplex'):
+                commands.append(f"duplex {interface_data['duplex']}")
+            
+            # Настройка VLAN для access-портов
+            if interface_data.get('vlan'):
+                commands.append(f"switchport access vlan {interface_data['vlan']}")
+                commands.append("switchport mode access")
+            
+            # Статус интерфейса
+            if interface_data.get('status') == 'up':
+                commands.append("no shutdown")
+            else:
+                commands.append("shutdown")
+            
+            logger.debug(f"Отправка команд для создания интерфейса: {commands}")
+            output = connection.send_config_set(commands)
+            logger.debug(f"Результат выполнения команд:\n{output}")
+            
+            # Проверка ошибок в выводе
+            if 'Invalid input' in output or 'Error' in output:
+                raise Exception(f"Ошибка выполнения команд: {output}")
+            
+            # Сохранение конфигурации
+            save_output = connection.send_command('write memory')
+            logger.debug(f"Результат сохранения конфигурации:\n{save_output}")
+            
+            return True, output
+            
+        except Exception as e:
+            logger.error(f"Ошибка при создании интерфейса: {str(e)}")
+            return False, str(e)
+        finally:
+            if connection:
+                connection.disconnect()
+                
+    except Exception as e:
+        logger.error(f"Ошибка подключения для создания интерфейса: {str(e)}")
+        return False, str(e)
+
+def format_interface_name(name):
+    """Форматирует имя интерфейса для Cisco IOS (добавляет пробелы)"""
+    # Для физических интерфейсов: GigabitEthernet0/1 -> GigabitEthernet 0/1
+    if name.startswith(('GigabitEthernet', 'FastEthernet', 'TenGigabitEthernet')):
+        return name[:len('GigabitEthernet')] + ' ' + name[len('GigabitEthernet'):]
+    # Для SVI интерфейсов: Vlan10 -> Vlan 10
+    elif name.startswith('Vlan'):
+        return name[:4] + ' ' + name[4:]
+    # Для loopback интерфейсов: Loopback0 -> Loopback 0
+    elif name.startswith('Loopback'):
+        return name[:8] + ' ' + name[8:]
+    return name
+
+
+def get_routing_table(connection, device_type):
+    """Получение таблицы маршрутизации с устройства"""
+    try:
+        if device_type.lower() == 'cisco':
+            output = connection.send_command('show ip route', delay_factor=2)
+            return parse_cisco_routing_table(output)
+        else:
+            output = connection.send_command('display ip routing-table', delay_factor=2)
+            return parse_huawei_routing_table(output)
+    except Exception as e:
+        logger.error(f"Ошибка получения таблицы маршрутизации: {str(e)}")
+        return []
+
+def parse_cisco_routing_table(output):
+    """Парсинг вывода Cisco 'show ip route' для реального оборудования"""
+    routes = []
+    current_protocol = None
+    
+    for line in output.splitlines():
+        # Определяем протокол маршрутизации
+        if line.strip().startswith('Gateway of last resort is'):
+            continue
+            
+        if 'Routing entry for' in line:
+            continue
+            
+        if line.startswith('Codes:'):
+            continue
+            
+        # Обработка маршрутов
+        if line.strip() and line[0].isalpha() and 'via' in line:
+            parts = line.split()
+            route_type = parts[0][0]  # Первый символ - тип маршрута
+            
+            # Для маршрутов типа "O IA" (OSPF inter-area)
+            if len(parts[0]) > 1 and parts[0][1] == '*':
+                route_type = parts[0][0]
+                
+            network = parts[1]
+            mask_or_prefix = None
+            admin_distance = None
+            metric = None
+            next_hop = None
+            interface = None
+            time_info = None
+            
+            # Обработка разных форматов вывода
+            if 'is directly connected' in line:
+                # Пример: C        192.168.1.0/24 is directly connected, GigabitEthernet0/1
+                interface = line.split(',')[-1].strip()
+                next_hop = '0.0.0.0'
+                mask_or_prefix = network.split('/')[1] if '/' in network else '24'
+                network = network.split('/')[0]
+            elif 'via' in line:
+                # Пример: D EX     10.1.2.0/24 [170/30720] via 192.168.1.1, 00:00:15, GigabitEthernet0/1
+                via_index = parts.index('via')
+                network = parts[1]
+                if '/' in network:
+                    network, mask_or_prefix = network.split('/')
+                
+                # Извлекаем административное расстояние и метрику
+                if '[' in parts[2]:
+                    adm_metric = parts[2].strip('[]')
+                    admin_distance, metric = adm_metric.split('/')
+                
+                next_hop = parts[via_index + 1].rstrip(',')
+                
+                # Интерфейс и время могут быть не у всех маршрутов
+                if len(parts) > via_index + 2:
+                    if ',' in parts[via_index + 2]:
+                        interface = parts[via_index + 3].rstrip(',') if len(parts) > via_index + 3 else None
+                        time_info = ' '.join(parts[via_index + 4:]) if len(parts) > via_index + 4 else None
+                    else:
+                        interface = parts[via_index + 2].rstrip(',')
+                        time_info = ' '.join(parts[via_index + 3:]) if len(parts) > via_index + 3 else None
+            
+            routes.append({
+                'type': route_type,
+                'network': network,
+                'mask': None,
+                'prefix': mask_or_prefix,
+                'admin_distance': admin_distance,
+                'metric': metric,
+                'next_hop': next_hop,
+                'interface': interface,
+                'time': time_info
+            })
+    
+    return routes
+
+def parse_huawei_routing_table(output):
+    """Парсинг вывода Huawei 'display ip routing-table' для реального оборудования"""
+    routes = []
+    
+    for line in output.splitlines():
+        if not line.strip() or line.startswith('Route Flags:'):
+            continue
+            
+        parts = line.split()
+        if len(parts) < 6:
+            continue
+            
+        # Пример строки:
+        # Destination/Mask    Proto   Pre  Cost      Flags NextHop         Interface
+        # 10.1.1.0/24         OSPF    10   2           D   192.168.1.1    GigabitEthernet0/0/1
+        route_type = parts[1][0]  # Первый символ протокола
+        
+        # Обработка сети/маски
+        dest_mask = parts[0]
+        if '/' in dest_mask:
+            network, prefix = dest_mask.split('/')
+            mask = None
+        else:
+            network = dest_mask
+            prefix = None
+            mask = '255.255.255.255'  # Для хост-маршрутов
+            
+        admin_distance = parts[2]
+        metric = parts[3]
+        next_hop = parts[5] if len(parts) > 5 else None
+        interface = parts[6] if len(parts) > 6 else None
+        
+        routes.append({
+            'type': route_type,
+            'network': network,
+            'mask': mask,
+            'prefix': prefix,
+            'admin_distance': admin_distance,
+            'metric': metric,
+            'next_hop': next_hop,
+            'interface': interface,
+            'time': None  # Huawei обычно не показывает время
+        })
+    
+    return routes
+
+def parse_cisco_mac_table(output):
+    """Парсинг вывода Cisco 'show mac address-table'"""
+    mac_entries = []
+    
+    # Пример вывода:
+    #           Mac Address Table
+    # -------------------------------------------
+    # Vlan    Mac Address       Type        Ports
+    # ----    -----------       --------    -----
+    #  100    0011.2233.4455    DYNAMIC     Gi0/1
+    #  200    aabb.ccdd.eeff    STATIC      Gi0/2
+    
+    for line in output.splitlines():
+        if not line.strip() or line.startswith('Mac Address Table') or line.startswith('---'):
+            continue
+            
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+            
+        # Проверяем, начинается ли строка с VLAN (число)
+        if parts[0].isdigit():
+            vlan = parts[0]
+            mac = parts[1]
+            entry_type = parts[2].capitalize()
+            port = ' '.join(parts[3:])  # Объединяем оставшиеся части (на случай пробелов в имени порта)
+            
+            # Определяем статус порта (упрощенно - для реального устройства нужно проверять статус интерфейса)
+            port_status = 'up' if not port.startswith('Po') else 'down'
+            
+            mac_entries.append({
+                'vlan': vlan,
+                'mac_address': format_mac_address(mac),
+                'type': entry_type,
+                'port': port,
+                'port_status': port_status,
+                'age': '0' if entry_type.lower() == 'static' else str(random.randint(10, 3600))
+            })
+    
+    return mac_entries
+
+def parse_huawei_mac_table(output):
+    """Парсинг вывода Huawei 'display mac-address'"""
+    mac_entries = []
+    
+    # Пример вывода:
+    # MAC Address    VLAN/VSI/BD   Learned-From        Type               Age
+    # ---------------------------------------------------------------
+    # 00-11-22-33-44-56 100/-/-      GE0/0/1             dynamic          20
+    # AA-BB-CC-DD-EE-FF 200/-/-      GE0/0/2             static           -
+    
+    for line in output.splitlines():
+        if not line.strip() or line.startswith('MAC Address') or line.startswith('---'):
+            continue
+            
+        parts = line.split()
+        if len(parts) < 5:
+            continue
+            
+        mac = parts[0]
+        vlan = parts[1].split('/')[0]  # Берем только VLAN (игнорируем VSI/BD)
+        port = parts[2]
+        entry_type = parts[3].capitalize()
+        age = parts[4] if len(parts) > 4 else '0'
+        
+        # Определяем статус порта
+        port_status = 'up' if not port.startswith('Eth') else 'down'
+        
+        mac_entries.append({
+            'vlan': vlan,
+            'mac_address': format_mac_address(mac),
+            'type': entry_type,
+            'port': port,
+            'port_status': port_status,
+            'age': age if age != '-' else '0'
+        })
+    
+    return mac_entries
+
+def format_mac_address(mac):
+    """Форматирование MAC-адреса к единому виду (00:11:22:33:44:55)"""
+    # Удаляем все разделители и приводим к нижнему регистру
+    clean_mac = re.sub(r'[^a-fA-F0-9]', '', mac).lower()
+    
+    # Вставляем двоеточия каждые 2 символа
+    formatted_mac = ':'.join(clean_mac[i:i+2] for i in range(0, 12, 2))
+    
+    return formatted_mac
+
+def parse_cisco_arp_table(output):
+    """Парсинг вывода Cisco 'show arp'"""
+    arp_entries = []
+    
+    # Пример вывода Cisco:
+    # Protocol  Address          Age (min)  Hardware Addr   Type   Interface
+    # Internet  192.168.1.1            0   0011.2233.4455  ARPA   GigabitEthernet0/1
+    # Internet  192.168.1.2            -   0022.3344.5566  ARPA   GigabitEthernet0/2
+    # Internet  192.168.1.3            5   Incomplete      ARPA
+    
+    for line in output.splitlines():
+        if not line.strip() or line.startswith('Protocol') or line.startswith('---'):
+            continue
+            
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+            
+        # Проверяем, начинается ли строка с "Internet"
+        if parts[0] == 'Internet':
+            ip = parts[1]
+            age = parts[2] if parts[2] != '-' else '0'
+            mac = parts[3] if parts[3].lower() != 'incomplete' else 'Incomplete'
+            interface = ' '.join(parts[5:]) if len(parts) > 5 else 'N/A'
+            
+            # Определяем тип записи
+            if mac == 'Incomplete':
+                entry_type = 'Incomplete'
+            elif age == '0':
+                entry_type = 'Static'
+            else:
+                entry_type = 'Dynamic'
+            
+            arp_entries.append({
+                'ip_address': ip,
+                'mac_address': format_mac_address(mac) if mac != 'Incomplete' else 'Incomplete',
+                'interface': interface,
+                'type': entry_type,
+                'age': age,
+                'last_update': datetime.now().strftime('%H:%M:%S')
+            })
+    
+    return arp_entries
+
+def parse_huawei_arp_table(output):
+    """Парсинг вывода Huawei 'display arp'"""
+    arp_entries = []
+    
+    # Пример вывода Huawei:
+    # IP ADDRESS      MAC ADDRESS     EXPIRE(M) TYPE        INTERFACE
+    # ------------------------------------------------------------
+    # 192.168.1.1     0011-2233-4455  20        D           GE0/0/1
+    # 192.168.1.2     0022-3344-5566  -         S           GE0/0/2
+    # 192.168.1.3     Incomplete      I         GE0/0/3
+    
+    for line in output.splitlines():
+        if not line.strip() or line.startswith('IP ADDRESS') or line.startswith('---'):
+            continue
+            
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+            
+        ip = parts[0]
+        mac = parts[1] if parts[1].lower() != 'incomplete' else 'Incomplete'
+        expire = parts[2] if parts[2] != '-' else '0'
+        entry_type = 'Dynamic' if parts[3] == 'D' else 'Static' if parts[3] == 'S' else 'Incomplete'
+        interface = parts[4] if len(parts) > 4 else 'N/A'
+        
+        arp_entries.append({
+            'ip_address': ip,
+            'mac_address': format_mac_address(mac) if mac != 'Incomplete' else 'Incomplete',
+            'interface': interface,
+            'type': entry_type,
+            'age': expire,
+            'last_update': datetime.now().strftime('%H:%M:%S')
+        })
+    
+    return arp_entries

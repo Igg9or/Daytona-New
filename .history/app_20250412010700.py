@@ -1488,26 +1488,5 @@ def parse_huawei_logs(log_output):
     
     return logs[-100:]  # Возвращаем последние 100 записей
 
-@app.route('/refresh-logs')
-def refresh_logs():
-    if 'device_data' not in session:
-        return redirect(url_for('login'))
-    
-    try:
-        # Обновляем данные устройства
-        result = connect_and_collect_data(session['device_data'])
-        if result['status'] == 'success':
-            session['device_status'] = json.dumps(result['data'])
-            session['last_update'] = datetime.now().isoformat()
-            flash('Логи успешно обновлены', 'success')
-        else:
-            flash('Не удалось обновить логи', 'error')
-    
-    except Exception as e:
-        flash(f'Ошибка при обновлении логов: {str(e)}', 'error')
-    
-    return redirect(url_for('device_logs'))
-
-
 if __name__ == '__main__':
     app.run(debug=True)

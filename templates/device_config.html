@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Конфигурация устройства</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .config-section {
+            margin-bottom: 30px;
+        }
+        .config-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .config-item {
+            margin-bottom: 10px;
+        }
+        .config-label {
+            font-weight: 600;
+            color: var(--dark);
+            opacity: 0.8;
+        }
+        .config-value {
+            font-family: monospace;
+            word-break: break-word;
+        }
+        .raw-config {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .toggle-raw {
+            margin-bottom: 15px;
+        }
+        .alert-error {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #c62828;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/daytona_logo.png') }}" alt="Daytona Logo" class="sidebar-logo">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item active">
+                <a href="/device-status">Обзор системы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interfaces">Интерфейсы</a>
+            </li>
+            <li class="menu-item active">
+                <a href="/interface-details">Детали интерфейса</a>
+            </li>
+            <li class="menu-item">
+                <a href="/vlan-info">Информация о VLAN</a>
+            </li>
+            <li class="menu-item">
+                <a href="/vlan-details">Данные о конкретном VLAN</a>
+            </li>
+            <li class="menu-item">
+                <a href="/device-config"><i class="fas fa-file-code"></i> Конфигурация устройства</a>
+            </li>
+            <li class="menu-item">
+                <a href="/device-logs"><i class="fas fa-clipboard-list"></i> Логи устройства</a>
+            </li>
+            <li class="menu-item has-submenu">
+                <a href="#"><i class="fas fa-table"></i> Вывод таблиц</a>
+                <ul class="submenu">
+                    <li class="menu-item active">
+                        <a href="/routing-table"><i class="fas fa-route"></i> Маршрутизации</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/mac-table"><i class="fas fa-ethernet"></i> Коммутации</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/arp-table"><i class="fas fa-address-book"></i> ARP</a>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-file-code"></i> Конфигурация устройства
+                    <span class="device-ip">{{ device_info.ip_address }}</span>
+                </h1>
+                <div class="dashboard-actions">
+                    <a href="/refresh-config" class="btn btn-refresh">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </a>
+                </div>
+            </header>
+
+            <!-- Сообщения об ошибках -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            <i class="fas fa-exclamation-circle"></i> {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Информация об устройстве -->
+            <div class="card">
+                <div class="device-info-header">
+                    <h2><i class="fas fa-info-circle"></i> Основная информация</h2>
+                </div>
+                <div class="detail-grid" style="grid-template-columns: 150px 1fr 150px 1fr;">
+                    <div class="detail-label">Модель:</div>
+                    <div class="detail-value">{{ device_info.model }}</div>
+                    
+                    <div class="detail-label">Версия ПО:</div>
+                    <div class="detail-value">{{ device_info.software_version }}</div>
+                    
+                    <div class="detail-label">IP-адрес:</div>
+                    <div class="detail-value">{{ device_info.ip_address }}</div>
+                    
+                    <div class="detail-label">Время работы:</div>
+                    <div class="detail-value">{{ device_info.uptime }}</div>
+                </div>
+            </div>
+
+            <!-- Основные параметры конфигурации -->
+            <div class="card">
+                <h2><i class="fas fa-cog"></i> Основные параметры</h2>
+                
+                <div class="config-grid">
+                    <!-- Сетевые параметры -->
+                    <div class="config-card">
+                        <h3><i class="fas fa-network-wired"></i> Сетевые параметры</h3>
+                        <div class="config-item">
+                            <span class="config-label">Имя устройства:</span>
+                            <span class="config-value">{{ full_config.parsed_config.hostname }}</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">Доменное имя:</span>
+                            <span class="config-value">{{ full_config.parsed_config.domain_name }}</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">Количество VLAN:</span>
+                            <span class="config-value">{{ full_config.parsed_config.vlans|length }}</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">Количество интерфейсов:</span>
+                            <span class="config-value">{{ full_config.parsed_config.interfaces|length }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Безопасность -->
+                    <div class="config-card">
+                        <h3><i class="fas fa-shield-alt"></i> Безопасность</h3>
+                        <div class="config-item">
+                            <span class="config-label">AAA:</span>
+                            <span class="config-value">
+                                {% if full_config.parsed_config.aaa.new_model %}Включено{% else %}Отключено{% endif %}
+                            </span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">SNMP:</span>
+                            <span class="config-value">
+                                {% if full_config.parsed_config.snmp.enabled %}
+                                    Включено ({{ full_config.parsed_config.snmp.community }})
+                                {% else %}
+                                    Отключено
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">TACACS+:</span>
+                            <span class="config-value">
+                                {% if full_config.parsed_config.tacacs.enabled %}
+                                    Включено ({{ full_config.parsed_config.tacacs.servers|join(', ') }})
+                                {% else %}
+                                    Отключено
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Время -->
+                    <div class="config-card">
+                        <h3><i class="fas fa-clock"></i> Время</h3>
+                        <div class="config-item">
+                            <span class="config-label">NTP:</span>
+                            <span class="config-value">
+                                {% if full_config.parsed_config.ntp.enabled %}
+                                    Включено ({{ full_config.parsed_config.ntp.servers|join(', ') }})
+                                {% else %}
+                                    Отключено
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">Логирование:</span>
+                            <span class="config-value">
+                                {% if full_config.parsed_config.logging.enabled %}
+                                    Включено ({{ full_config.parsed_config.logging.servers|join(', ') }})
+                                {% else %}
+                                    Отключено
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Полная конфигурация -->
+            <div class="card">
+                <h2><i class="fas fa-file-alt"></i> Полная конфигурация</h2>
+                <button class="btn toggle-raw" onclick="toggleRawConfig()">
+                    <i class="fas fa-eye"></i> Показать/скрыть полную конфигурацию
+                </button>
+                <div id="rawConfig" class="raw-config" style="display: none;">
+                    {{ full_config.raw_config }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleRawConfig() {
+            const rawConfig = document.getElementById('rawConfig');
+            rawConfig.style.display = rawConfig.style.display === 'none' ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>
