@@ -62,9 +62,6 @@
             <li class="menu-item active">
                 <a href="/interface-details">Детали интерфейса</a>
             </li>
-            <li class="menu-item">
-                <a href="/vlan-info">Информация о VLAN</a>
-            </li>
         </ul>
     </div>
 
@@ -182,50 +179,38 @@
 
     <script>
         function loadInterfaceDetails(interfaceName) {
-    if (!interfaceName) {
-        document.getElementById('interfaceDetails').style.display = 'none';
-        return;
-    }
+            if (!interfaceName) {
+                document.getElementById('interfaceDetails').style.display = 'none';
+                return;
+            }
 
-    fetch(`/get-interface-details?name=${encodeURIComponent(interfaceName)}`)
-        .then(response => response.json())
-        .then(data => {
-            const detailsContainer = document.getElementById('interfaceDetails');
-            detailsContainer.style.display = 'grid';
-            
-            // Основная информация
-            document.getElementById('interfaceName').textContent = data.name;
-            document.getElementById('interfaceDescription').textContent = data.description || 'Не указано';
-            document.getElementById('interfaceType').textContent = data.type || 'N/A';
-            
-            // Статус
-            const statusBadge = document.getElementById('interfaceStatus');
-            statusBadge.textContent = data.status === 'up' ? 'Active' : 'Down';
-            statusBadge.className = `status-badge status-${data.status}`;
-            
-            // Характеристики
-            document.getElementById('interfaceSpeed').textContent = data.speed || 'N/A';
-            document.getElementById('interfaceDuplex').textContent = data.duplex || 'N/A';
-            document.getElementById('interfaceMtu').textContent = data.mtu || '1500';
-            document.getElementById('interfaceMac').textContent = data.mac_address || 'N/A';
-            
-            // IP-настройки
-            document.getElementById('interfaceIp').textContent = data.ip_address || 'Не назначен';
-            document.getElementById('interfaceNetmask').textContent = data.netmask || 'N/A';
-            
-            // Статистика
-            document.getElementById('interfaceInputRate').textContent = data.input_rate || 'N/A';
-            document.getElementById('interfaceOutputRate').textContent = data.output_rate || 'N/A';
-            document.getElementById('interfaceInputErrors').textContent = data.input_errors || '0';
-            document.getElementById('interfaceOutputErrors').textContent = data.output_errors || '0';
-            document.getElementById('interfaceLastInput').textContent = data.last_input || 'N/A';
-            document.getElementById('interfaceLastOutput').textContent = data.last_output || 'N/A';
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Ошибка при загрузке данных интерфейса');
-        });
-}
+            // Здесь должен быть AJAX-запрос к серверу для получения деталей интерфейса
+            // Временно используем тестовые данные
+            fetch(`/get-interface-details?name=${encodeURIComponent(interfaceName)}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('interfaceDetails').style.display = 'block';
+                    document.getElementById('interfaceNameTitle').textContent = data.name;
+                    document.getElementById('interfaceDescription').textContent = data.description || 'N/A';
+                    document.getElementById('interfaceStatus').textContent = data.status;
+                    document.getElementById('interfaceStatus').className = 'status-' + data.status;
+                    document.getElementById('interfaceType').textContent = data.type || 'N/A';
+                    document.getElementById('interfaceSpeed').textContent = data.speed || 'N/A';
+                    document.getElementById('interfaceDuplex').textContent = data.duplex || 'N/A';
+                    document.getElementById('interfaceMtu').textContent = data.mtu || 'N/A';
+                    document.getElementById('interfaceMac').textContent = data.mac_address || 'N/A';
+                    document.getElementById('interfaceIp').textContent = data.ip_address || 'N/A';
+                    document.getElementById('interfaceNetmask').textContent = data.netmask || 'N/A';
+                    document.getElementById('interfaceLastInput').textContent = data.last_input || 'N/A';
+                    document.getElementById('interfaceLastOutput').textContent = data.last_output || 'N/A';
+                    document.getElementById('interfaceInputRate').textContent = data.input_rate || 'N/A';
+                    document.getElementById('interfaceOutputRate').textContent = data.output_rate || 'N/A';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Ошибка при загрузке данных интерфейса');
+                });
+        }
     </script>
 </body>
 </html>

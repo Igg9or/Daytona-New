@@ -232,45 +232,11 @@
 
     <!-- В templates/interfaces.html -->
     <script>
-        // ========== Общие функции ==========
-        function showAlert(type, message, duration = 5000) {
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type}`;
-            alertDiv.innerHTML = `
-                <span>${message}</span>
-                <button onclick="this.parentElement.remove()">&times;</button>
-            `;
-            document.querySelector('.container').prepend(alertDiv);
-            setTimeout(() => {
-                alertDiv.style.opacity = '0';
-                setTimeout(() => alertDiv.remove(), 300);
-            }, duration);
-        }
-    
-        function showLoading(message = 'Применение изменений...') {
-            const loadingOverlay = document.createElement('div');
-            loadingOverlay.className = 'loading-overlay';
-            loadingOverlay.innerHTML = `
-                <div class="loading-spinner">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>${message}</p>
-                </div>
-            `;
-            document.body.appendChild(loadingOverlay);
-            return loadingOverlay;
-        }
-    
-        // ========== Функции для работы с интерфейсами ==========
         function updateInterfaceRow(data) {
     const rows = document.querySelectorAll('.interface-table tbody tr');
     for (const row of rows) {
-        // Удаляем пробелы для сравнения (GigabitEthernet 0/1 -> GigabitEthernet0/1)
-        const rowName = row.cells[0].textContent.replace(/\s+/g, '');
-        const dataName = data.interface_name.replace(/\s+/g, '');
-        
-        if (rowName === dataName) {
-            // Форматируем имя с пробелом для отображения
-            row.cells[0].textContent = format_interface_display_name(data.interface_name);
+        if (row.cells[0].textContent === data.interface_name) {
+            // Обновляем ячейки
             row.cells[1].textContent = data.description;
             
             // Обновляем статус (и класс)
@@ -281,11 +247,13 @@
             row.cells[3].textContent = data.vlan;
             row.cells[4].textContent = data.duplex;
             
-            // Форматируем скорость
+            // Форматируем скорость в зависимости от значения
             let speedText = data.speed;
             if (data.speed !== 'auto') {
                 speedText += ' Mbps';
-                if (data.speed === '1000') {
+                // Для Huawei гигабитных интерфейсов
+                if (data.speed === '1000' && 
+                    data.interface_name.includes('GigabitEthernet')) {
                     speedText = '1 Gbps';
                 }
             }
@@ -295,7 +263,41 @@
         }
     }
 }
+
+        // Функция закрытия модального окна
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
     
+        // Обработчик клика вне модального окна
+        window.onclick = function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    
+        // Открытие модального окна с текущими значениями интерфейса
+        function openEditModal(interfaceName) {
+            const modal = document.getElementById('editModal');
+            document.getElementById('modalInterfaceName').textContent = interfaceName;
+            
+            // Находим интерфейс в таблице
+            const interface = findInterfaceByName(interfaceName);
+            
+            if (interface) {
+                // Заполняем форму текущими значениями
+                document.getElementById('description').value = interface.description || '';
+                document.getElementById('status').value = interface.status || 'up';
+                document.getElementById('vlan').value = interface.vlan || 1;
+                document.getElementById('duplex').value = interface.duplex || 'auto';
+                document.getElementById('speed').value = interface.speed.split(' ')[0] || 'auto';
+            }
+            
+            modal.style.display = 'block';
+        }
+    
+        // Находим интерфейс по имени (из таблицы)
         function findInterfaceByName(name) {
             const rows = document.querySelectorAll('.interface-table tbody tr');
             for (const row of rows) {
@@ -313,36 +315,8 @@
             return null;
         }
     
-        // ========== Функции модального окна ==========
-        function openEditModal(interfaceName) {
-            const modal = document.getElementById('editModal');
-            document.getElementById('modalInterfaceName').textContent = interfaceName;
-            
-            const interface = findInterfaceByName(interfaceName);
-            if (interface) {
-                document.getElementById('description').value = interface.description || '';
-                document.getElementById('status').value = interface.status || 'up';
-                document.getElementById('vlan').value = interface.vlan || 1;
-                document.getElementById('duplex').value = interface.duplex || 'auto';
-                document.getElementById('speed').value = interface.speed.split(' ')[0] || 'auto';
-            }
-            
-            modal.style.display = 'block';
-        }
-    
-        function closeModal() {
-            document.getElementById('editModal').style.display = 'none';
-        }
-    
-        window.onclick = function(event) {
-            const modal = document.getElementById('editModal');
-            if (event.target == modal) {
-                closeModal();
-            }
-        }
-    
-        // ========== Обработчики форм ==========
-        document.getElementById('interfaceForm').addEventListener('submit', async function(e) {
+        // Обработка отправки формы
+        document.getElementById('interfaceForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
             const formData = {
@@ -354,169 +328,148 @@
                 speed: document.getElementById('speed').value
             };
     
+            // Показываем индикатор загрузки
             const submitBtn = document.querySelector('#interfaceForm .btn-save');
             const originalBtnText = submitBtn.innerHTML;
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
-            
-            const loading = showLoading('Сохранение изменений...');
     
-            try {
-                const response = await fetch('/update-interface', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formData)
-                });
-    
-                const data = await response.json();
-                
-                if (!response.ok) throw new Error(data.message || 'Ошибка сервера');
-                if (!data.success) throw new Error(data.message || 'Не удалось сохранить изменения');
-    
-                updateInterfaceRow(formData);
-                closeModal();
-                showAlert('success', 'Изменения успешно сохранены!');
-            } catch (error) {
+            // Отправляем данные на сервер
+            fetch('/update-interface', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Ошибка сети');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Обновляем строку в таблице
+                    updateInterfaceRow(formData);
+                    closeModal();
+                } else {
+                    throw new Error(data.message || 'Неизвестная ошибка сервера');
+                }
+            })
+            .catch(error => {
                 console.error('Ошибка:', error);
-                showAlert('error', 'Ошибка при сохранении: ' + error.message);
-            } finally {
-                loading.remove();
+                alert('Ошибка при сохранении: ' + error.message);
+            })
+            .finally(() => {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalBtnText;
-            }
+            });
         });
     
-        // ========== Функции создания интерфейса ==========
-        function toggleAdditionalParams() {
-            const params = document.getElementById('additionalParams');
-            const chevron = document.getElementById('paramsChevron');
-            
-            if (params.style.display === 'none') {
-                params.style.display = 'block';
-                chevron.classList.replace('fa-chevron-down', 'fa-chevron-up');
-            } else {
-                params.style.display = 'none';
-                chevron.classList.replace('fa-chevron-up', 'fa-chevron-down');
-            }
-        }
-    
-        function resetInterfaceForm() {
-            document.getElementById('createInterfaceForm').reset();
-            document.getElementById('additionalParams').style.display = 'none';
-            document.getElementById('paramsChevron').className = 'fas fa-chevron-down';
-        }
-    
-        function validateIpAddress(ip) {
-            return /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip);
-        }
-    
-        function validateNetmask(netmask) {
-            return /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\d{1,2})$/.test(netmask);
-        }
-    
-        document.getElementById('createInterfaceForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const interfaceType = document.getElementById('interfaceType').value;
-            const interfaceNumber = document.getElementById('interfaceNumber').value.trim();
-            const ipAddress = document.getElementById('interfaceIp').value.trim();
-            const netmask = document.getElementById('interfaceNetmask').value.trim();
-    
-            // Валидация
-            if (!interfaceType || !interfaceNumber) {
-                showAlert('error', 'Заполните обязательные поля');
-                return;
-            }
-    
-            if (ipAddress && !validateIpAddress(ipAddress)) {
-                showAlert('error', 'Введите корректный IP-адрес');
-                return;
-            }
-    
-            if (netmask && !validateNetmask(netmask)) {
-                showAlert('error', 'Введите корректную маску подсети (формат: 255.255.255.0 или 24)');
-                return;
-            }
-    
-            // Формируем имя интерфейса
-            let interfaceName;
-            switch(interfaceType) {
-    case 'physical':
-        interfaceName = `GigabitEthernet${interfaceNumber.replace(/\s+/g, '')}`;
-        break;
-    case 'logical':
-        interfaceName = `Loopback${interfaceNumber.replace(/\s+/g, '')}`;
-        break;
-    case 'svi':
-        interfaceName = `Vlan${interfaceNumber.replace(/\s+/g, '')}`;
-        break;
-    default:
-        showAlert('error', 'Неверный тип интерфейса');
-        return;
-}
-    
-            // Собираем данные формы
-            const formData = {
-                name: interfaceName,
-                type: interfaceType,
-                ip_address: ipAddress,
-                netmask: netmask,
-                status: document.getElementById('interfaceStatus').value,
-                description: document.getElementById('interfaceDescription').value.trim(),
-                mtu: document.getElementById('interfaceMtu').value,
-                bandwidth: document.getElementById('interfaceBandwidth').value,
-                duplex: document.getElementById('interfaceDuplex').value,
-                vlan: document.getElementById('interfaceVlan').value,
-                native_vlan: document.getElementById('interfaceNativeVlan').value
-            };
-    
-            // Для SVI интерфейсов корректируем данные
-            if (interfaceType === 'svi') {
-                delete formData.duplex;
-                delete formData.bandwidth;
-                if (!formData.ip_address) {
-                    showAlert('error', 'Для SVI интерфейса необходимо указать IP-адрес');
-                    return;
+        // Обновляем строку в таблице
+        function updateInterfaceRow(data) {
+            const rows = document.querySelectorAll('.interface-table tbody tr');
+            for (const row of rows) {
+                if (row.cells[0].textContent === data.interface_name) {
+                    // Обновляем ячейки
+                    row.cells[1].textContent = data.description;
+                    
+                    // Обновляем статус (и класс)
+                    const statusCell = row.cells[2];
+                    statusCell.textContent = data.status.toUpperCase();
+                    statusCell.className = 'status-' + data.status;
+                    
+                    row.cells[3].textContent = data.vlan;
+                    row.cells[4].textContent = data.duplex;
+                    row.cells[5].textContent = data.speed + (data.speed !== 'auto' ? ' Mbps' : '');
+                    break;
                 }
             }
+        }
+        function toggleAdditionalParams() {
+        const params = document.getElementById('additionalParams');
+        const chevron = document.getElementById('paramsChevron');
+        
+        if (params.style.display === 'none') {
+            params.style.display = 'block';
+            chevron.classList.replace('fa-chevron-down', 'fa-chevron-up');
+        } else {
+            params.style.display = 'none';
+            chevron.classList.replace('fa-chevron-up', 'fa-chevron-down');
+        }
+    }
     
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalBtnText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Создание...';
-            
-            const loading = showLoading('Создание интерфейса...');
+    // Сброс формы
+    function resetInterfaceForm() {
+        document.getElementById('createInterfaceForm').reset();
+        document.getElementById('additionalParams').style.display = 'none';
+        document.getElementById('paramsChevron').className = 'fas fa-chevron-down';
+    }
     
-            try {
-                const response = await fetch('/create-interface', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formData)
-                });
-    
-                const data = await response.json();
-                
-                if (!response.ok) throw new Error(data.message || 'Ошибка сервера');
-                if (!data.success) throw new Error(data.message || 'Не удалось создать интерфейс');
-    
-                showAlert('success', `Интерфейс ${interfaceName} успешно создан!`);
+    // Обработка отправки формы
+    document.getElementById('createInterfaceForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const interfaceType = document.getElementById('interfaceType').value;
+        const interfaceNumber = document.getElementById('interfaceNumber').value;
+        
+        // Формируем имя интерфейса в зависимости от типа
+        let interfaceName;
+        switch(interfaceType) {
+            case 'physical':
+                interfaceName = `GigabitEthernet${interfaceNumber}`;
+                break;
+            case 'logical':
+                interfaceName = `Loopback${interfaceNumber}`;
+                break;
+            case 'svi':
+                interfaceName = `Vlan${interfaceNumber}`;
+                break;
+            default:
+                alert('Выберите тип интерфейса');
+                return;
+        }
+        
+        // Собираем данные формы
+        const formData = {
+            name: interfaceName,
+            type: interfaceType,
+            ip_address: document.getElementById('interfaceIp').value,
+            netmask: document.getElementById('interfaceNetmask').value,
+            status: document.getElementById('interfaceStatus').value,
+            description: document.getElementById('interfaceDescription').value,
+            mtu: document.getElementById('interfaceMtu').value,
+            bandwidth: document.getElementById('interfaceBandwidth').value,
+            duplex: document.getElementById('interfaceDuplex').value,
+            vlan: document.getElementById('interfaceVlan').value,
+            native_vlan: document.getElementById('interfaceNativeVlan').value
+        };
+        
+        // Отправка данных на сервер
+        fetch('/create-interface', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Интерфейс успешно создан!');
                 resetInterfaceForm();
-                
-                // Обновляем таблицу через 1 секунду
-                setTimeout(() => window.location.reload(), 1000);
-            } catch (error) {
-                console.error('Ошибка:', error);
-                showAlert('error', error.message);
-            } finally {
-                loading.remove();
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalBtnText;
+                // Обновляем таблицу интерфейсов
+                window.location.reload();
+            } else {
+                alert('Ошибка: ' + data.message);
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ошибка при создании интерфейса');
         });
+    });
     </script>
 
     

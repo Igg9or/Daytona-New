@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Интерфейсы устройства</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item">
+                <a href="/device-status">Обзор системы</a>
+            </li>
+            <li class="menu-item active">
+                <a href="/interfaces">Интерфейсы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interface-details">Детали интерфейса</a>
+            </li>
+            <li class="menu-item">
+                <a href="/vlan-info">Информация о VLAN</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-network-wired"></i> Интерфейсы
+                </h1>
+            </header>
+
+            <!-- Таблица интерфейсов -->
+            <div class="card">
+                <table class="interface-table">
+                    <thead>
+                        <tr>
+                            <th>Порт</th>
+                            <th>Описание</th>
+                            <th>Статус</th>
+                            <th>VLAN</th>
+                            <th>Дуплекс</th>
+                            <th>Скорость</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for intf in interfaces %}
+                        <tr>
+                            <td>{{ intf.name }}</td>
+                            <td>{{ intf.description }}</td>
+                            <td class="status-{{ intf.status }}">
+                                {{ intf.status|upper }}
+                            </td>
+                            <td>{{ intf.vlan }}</td>
+                            <td>{{ intf.duplex }}</td>
+                            <td>{{ intf.speed }}</td>
+                            <td>
+                                <button class="btn-edit" onclick="openEditModal('{{ intf.name }}')">
+                                    <i class="fas fa-edit"></i> Редактировать
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>Редактирование интерфейса <span id="modalInterfaceName"></span></h2>
+            
+            <form id="interfaceForm">
+                <div class="form-group">
+                    <label for="description">Описание:</label>
+                    <input type="text" id="description" name="description">
+                </div>
+                
+                <div class="form-group">
+                    <label for="status">Статус:</label>
+                    <select id="status" name="status">
+                        <option value="up">Up</option>
+                        <option value="down">Down</option>
+                        <option value="disabled">Disabled</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="vlan">VLAN:</label>
+                    <input type="number" id="vlan" name="vlan" min="1" max="4094">
+                </div>
+                
+                <div class="form-group">
+                    <label for="duplex">Дуплекс:</label>
+                    <select id="duplex" name="duplex">
+                        <option value="auto">Auto</option>
+                        <option value="full">Full</option>
+                        <option value="half">Half</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="speed">Скорость:</label>
+                    <select id="speed" name="speed">
+                        <option value="auto">Auto</option>
+                        <option value="10">10 Mbps</option>
+                        <option value="100">100 Mbps</option>
+                        <option value="1000">1 Gbps</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-cancel" onclick="closeModal()">Отмена</button>
+                    <button type="submit" class="btn btn-save">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- В templates/interfaces.html -->
+    <script>
+        function updateInterfaceRow(data) {
+    const rows = document.querySelectorAll('.interface-table tbody tr');
+    for (const row of rows) {
+        if (row.cells[0].textContent === data.interface_name) {
+            // Обновляем ячейки
+            row.cells[1].textContent = data.description;
+            
+            // Обновляем статус (и класс)
+            const statusCell = row.cells[2];
+            statusCell.textContent = data.status.toUpperCase();
+            statusCell.className = 'status-' + data.status;
+            
+            row.cells[3].textContent = data.vlan;
+            row.cells[4].textContent = data.duplex;
+            
+            // Форматируем скорость в зависимости от значения
+            let speedText = data.speed;
+            if (data.speed !== 'auto') {
+                speedText += ' Mbps';
+                // Для Huawei гигабитных интерфейсов
+                if (data.speed === '1000' && 
+                    data.interface_name.includes('GigabitEthernet')) {
+                    speedText = '1 Gbps';
+                }
+            }
+            row.cells[5].textContent = speedText;
+            
+            break;
+        }
+    }
+}
+
+        // Функция закрытия модального окна
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+    
+        // Обработчик клика вне модального окна
+        window.onclick = function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    
+        // Открытие модального окна с текущими значениями интерфейса
+        function openEditModal(interfaceName) {
+            const modal = document.getElementById('editModal');
+            document.getElementById('modalInterfaceName').textContent = interfaceName;
+            
+            // Находим интерфейс в таблице
+            const interface = findInterfaceByName(interfaceName);
+            
+            if (interface) {
+                // Заполняем форму текущими значениями
+                document.getElementById('description').value = interface.description || '';
+                document.getElementById('status').value = interface.status || 'up';
+                document.getElementById('vlan').value = interface.vlan || 1;
+                document.getElementById('duplex').value = interface.duplex || 'auto';
+                document.getElementById('speed').value = interface.speed.split(' ')[0] || 'auto';
+            }
+            
+            modal.style.display = 'block';
+        }
+    
+        // Находим интерфейс по имени (из таблицы)
+        function findInterfaceByName(name) {
+            const rows = document.querySelectorAll('.interface-table tbody tr');
+            for (const row of rows) {
+                if (row.cells[0].textContent === name) {
+                    return {
+                        name: name,
+                        description: row.cells[1].textContent,
+                        status: row.cells[2].textContent.toLowerCase().trim(),
+                        vlan: parseInt(row.cells[3].textContent),
+                        duplex: row.cells[4].textContent.toLowerCase(),
+                        speed: row.cells[5].textContent
+                    };
+                }
+            }
+            return null;
+        }
+    
+        // Обработка отправки формы
+        document.getElementById('interfaceForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                interface_name: document.getElementById('modalInterfaceName').textContent,
+                description: document.getElementById('description').value,
+                status: document.getElementById('status').value,
+                vlan: document.getElementById('vlan').value,
+                duplex: document.getElementById('duplex').value,
+                speed: document.getElementById('speed').value
+            };
+    
+            // Показываем индикатор загрузки
+            const submitBtn = document.querySelector('#interfaceForm .btn-save');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+    
+            // Отправляем данные на сервер
+            fetch('/update-interface', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Ошибка сети');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Обновляем строку в таблице
+                    updateInterfaceRow(formData);
+                    closeModal();
+                } else {
+                    throw new Error(data.message || 'Неизвестная ошибка сервера');
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Ошибка при сохранении: ' + error.message);
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            });
+        });
+    
+        // Обновляем строку в таблице
+        function updateInterfaceRow(data) {
+            const rows = document.querySelectorAll('.interface-table tbody tr');
+            for (const row of rows) {
+                if (row.cells[0].textContent === data.interface_name) {
+                    // Обновляем ячейки
+                    row.cells[1].textContent = data.description;
+                    
+                    // Обновляем статус (и класс)
+                    const statusCell = row.cells[2];
+                    statusCell.textContent = data.status.toUpperCase();
+                    statusCell.className = 'status-' + data.status;
+                    
+                    row.cells[3].textContent = data.vlan;
+                    row.cells[4].textContent = data.duplex;
+                    row.cells[5].textContent = data.speed + (data.speed !== 'auto' ? ' Mbps' : '');
+                    break;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

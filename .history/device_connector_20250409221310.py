@@ -4,18 +4,6 @@ from datetime import datetime
 from netmiko import ConnectHandler, NetmikoTimeoutException, NetmikoAuthenticationException
 import re
 from datetime import datetime
-import logging
-
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('device_connector.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
 
 # Тестовые учетные данные (для имитации успешной аутентификации)
 TEST_CREDENTIALS = {
@@ -544,17 +532,14 @@ def get_real_vlan_info(connection, device_type):
     
     return vlans
 
-import logging
-
-# Создаем логгер для этого модуля
-logger = logging.getLogger(__name__)
-
 def create_interface_on_device(device_data, interface_data):
-    """Создание интерфейса на Cisco устройстве с правильным форматом имен"""
-    connection = None
+    """Создание интерфейса на сетевом устройстве"""
     try:
+        device_type = device_data.get('device_type', 'Cisco').lower()
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        
         device_params = {
-            'device_type': 'cisco_ios',
+            'device_type': netmiko_device_type,
             'host': device_data['ip_address'],
             'username': device_data['username'],
             'password': device_data['password'],
@@ -562,10 +547,8 @@ def create_interface_on_device(device_data, interface_data):
             'timeout': 20,
             'session_timeout': 30,
             'global_delay_factor': 2,
-            'session_log': 'netmiko_create_interface.log'
         }
         
-        logger.info(f"Подключение для создания интерфейса {interface_data['name']}")
         connection = ConnectHandler(**device_params)
         
         try:
@@ -573,75 +556,48 @@ def create_interface_on_device(device_data, interface_data):
                 connection.enable()
             
             commands = []
-            # Форматируем имя интерфейса с пробелом
-            interface_name = format_interface_name(interface_data['name'])
+            interface_name = interface_data['name']
+            
+            # Основные команды для создания интерфейса
             commands.append(f"interface {interface_name}")
             
-            # Настройка IP-адреса
-            if interface_data.get('ip_address'):
-                commands.append(f"ip address {interface_data['ip_address']} {interface_data['netmask']}")
-            
-            # Описание интерфейса
             if interface_data.get('description'):
                 commands.append(f"description {interface_data['description']}")
             
-            # MTU
+            if interface_data.get('ip_address'):
+                if device_type == 'huawei':
+                    commands.append(f"ip address {interface_data['ip_address']} {interface_data['netmask']}")
+                else:
+                    commands.append(f"ip address {interface_data['ip_address']} {interface_data['netmask']}")
+            
             if interface_data.get('mtu'):
                 commands.append(f"mtu {interface_data['mtu']}")
             
-            # Полоса пропускания
-            if interface_data.get('bandwidth'):
-                commands.append(f"bandwidth {interface_data['bandwidth']}")
-            
-            # Режим дуплекса
-            if interface_data.get('duplex'):
-                commands.append(f"duplex {interface_data['duplex']}")
-            
-            # Настройка VLAN для access-портов
-            if interface_data.get('vlan'):
-                commands.append(f"switchport access vlan {interface_data['vlan']}")
-                commands.append("switchport mode access")
-            
-            # Статус интерфейса
             if interface_data.get('status') == 'up':
                 commands.append("no shutdown")
             else:
                 commands.append("shutdown")
             
-            logger.debug(f"Отправка команд для создания интерфейса: {commands}")
-            output = connection.send_config_set(commands)
-            logger.debug(f"Результат выполнения команд:\n{output}")
+            # Дополнительные параметры
+            if interface_data.get('vlan') and interface_data['type'] == 'physical':
+                if device_type == 'huawei':
+                    commands.append(f"port default vlan {interface_data['vlan']}")
+                else:
+                    commands.append(f"switchport access vlan {interface_data['vlan']}")
             
-            # Проверка ошибок в выводе
-            if 'Invalid input' in output or 'Error' in output:
-                raise Exception(f"Ошибка выполнения команд: {output}")
+            # Отправка команд
+            output = connection.send_config_set(commands)
             
             # Сохранение конфигурации
-            save_output = connection.send_command('write memory')
-            logger.debug(f"Результат сохранения конфигурации:\n{save_output}")
+            if device_type == 'cisco':
+                connection.send_command('write memory')
             
             return True, output
             
         except Exception as e:
-            logger.error(f"Ошибка при создании интерфейса: {str(e)}")
             return False, str(e)
         finally:
-            if connection:
-                connection.disconnect()
-                
+            connection.disconnect()
+            
     except Exception as e:
-        logger.error(f"Ошибка подключения для создания интерфейса: {str(e)}")
         return False, str(e)
-
-def format_interface_name(name):
-    """Форматирует имя интерфейса для Cisco IOS (добавляет пробелы)"""
-    # Для физических интерфейсов: GigabitEthernet0/1 -> GigabitEthernet 0/1
-    if name.startswith(('GigabitEthernet', 'FastEthernet', 'TenGigabitEthernet')):
-        return name[:len('GigabitEthernet')] + ' ' + name[len('GigabitEthernet'):]
-    # Для SVI интерфейсов: Vlan10 -> Vlan 10
-    elif name.startswith('Vlan'):
-        return name[:4] + ' ' + name[4:]
-    # Для loopback интерфейсов: Loopback0 -> Loopback 0
-    elif name.startswith('Loopback'):
-        return name[:8] + ' ' + name[8:]
-    return name

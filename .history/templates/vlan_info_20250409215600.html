@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Информация о VLAN</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .device-info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .vlan-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .vlan-table th {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        
+        .vlan-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .vlan-table tr:hover {
+            background-color: #f5f7fa;
+        }
+        
+        .vlan-active {
+            color: var(--success);
+            font-weight: bold;
+        }
+        
+        .vlan-inactive {
+            color: var(--danger);
+            font-weight: bold;
+        }
+        
+        .vlan-access {
+            color: var(--primary);
+            font-weight: bold;
+        }
+        
+        .vlan-trunk {
+            color: var(--warning);
+            font-weight: bold;
+        }
+        
+        .vlan-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background-color: var(--primary-light);
+            border-radius: 4px;
+            margin: 2px;
+            font-size: 0.8em;
+        }
+        .vlan-details {
+    margin-top: 30px;
+}
+
+.vlan-port-table {
+    width: 100%;
+    margin-top: 15px;
+}
+
+.vlan-port-table th {
+    background-color: #f0f0f0;
+}
+
+.vlan-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.vlan-tabs {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 20px;
+}
+
+.vlan-tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+}
+
+.vlan-tab.active {
+    border-color: #ddd;
+    border-bottom-color: white;
+    background: white;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+.vlan-tab-content {
+    display: none;
+}
+
+.vlan-tab-content.active {
+    display: block;
+}
+    </style>
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/daytona_logo.png') }}" alt="Daytona Logo" class="sidebar-logo">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item">
+                <a href="/device-status">Обзор системы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interfaces">Интерфейсы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interface-details">Детали интерфейса</a>
+            </li>
+            <li class="menu-item active">
+                <a href="/vlan-info">Информация о VLAN</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-sitemap"></i> Информация о VLAN
+                </h1>
+            </header>
+
+            <!-- Информация об устройстве -->
+            <div class="device-info-card">
+                <h2><i class="fas fa-info-circle"></i> Информация об устройстве</h2>
+                <div class="detail-grid" style="grid-template-columns: 150px 1fr;">
+                    <div class="detail-label">Модель:</div>
+                    <div class="detail-value">{{ device_info.model }}</div>
+                    
+                    <div class="detail-label">Версия ПО:</div>
+                    <div class="detail-value">{{ device_info.software_version }}</div>
+                    
+                    <div class="detail-label">IP-адрес:</div>
+                    <div class="detail-value">{{ device_info.ip_address }}</div>
+                    
+                    <div class="detail-label">Время работы:</div>
+                    <div class="detail-value">{{ device_info.uptime }}</div>
+                </div>
+            </div>
+
+            <!-- Таблица VLAN -->
+            <div class="card">
+                <h2><i class="fas fa-table"></i> Таблица VLAN</h2>
+                <table class="vlan-table">
+                    <thead>
+                        <tr>
+                            <th>ID VLAN</th>
+                            <th>Имя VLAN</th>
+                            <th>Описание</th>
+                            <th>Статус</th>
+                            <th>Режим порта</th>
+                            <th>Назначенный VLAN</th>
+                            <th>Разрешенные VLAN</th>
+                            <th>MAC-адреса</th>
+                            <th>IP SVI</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vlan in vlans %}
+                        <tr>
+                            <td>{{ vlan.id }}</td>
+                            <td>{{ vlan.name }}</td>
+                            <td>{{ vlan.description or '-' }}</td>
+                            <td class="{% if vlan.status == 'active' %}vlan-active{% else %}vlan-inactive{% endif %}">
+                                {{ vlan.status }}
+                            </td>
+                            <td class="{% if vlan.port_mode == 'access' %}vlan-access{% else %}vlan-trunk{% endif %}">
+                                {{ vlan.port_mode }}
+                            </td>
+                            <td>{{ vlan.access_vlan or '-' }}</td>
+                            <td>
+                                {% if vlan.allowed_vlans %}
+                                    {% for v in vlan.allowed_vlans.split(',') %}
+                                        <span class="vlan-tag">{{ v }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ vlan.mac_addresses or '-' }}</td>
+                            <td>{{ vlan.svi_ip or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

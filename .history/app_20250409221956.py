@@ -9,7 +9,6 @@ import re
 from datetime import datetime
 import logging
 from logging.handlers import RotatingFileHandler
-from device_connector import create_interface_on_device, connect_and_collect_data
 
 
 app = Flask(__name__, static_url_path='/static')
@@ -446,7 +445,6 @@ def generate_huawei_vlan_test_data():
             'svi_ip': '192.168.10.1'
         }
     ]
-
 @app.route('/create-interface', methods=['POST'])
 def create_interface():
     if 'device_data' not in session:
@@ -478,7 +476,6 @@ def create_interface():
             }), 500
             
     except Exception as e:
-        current_app.logger.error(f"Ошибка в create_interface: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Ошибка: {str(e)}'

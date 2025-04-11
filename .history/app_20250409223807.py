@@ -478,7 +478,6 @@ def create_interface():
             }), 500
             
     except Exception as e:
-        current_app.logger.error(f"Ошибка в create_interface: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Ошибка: {str(e)}'

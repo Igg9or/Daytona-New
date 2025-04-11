@@ -446,7 +446,7 @@ def generate_huawei_vlan_test_data():
             'svi_ip': '192.168.10.1'
         }
     ]
-
+@app.route('/create-interface', methods=['POST'])
 @app.route('/create-interface', methods=['POST'])
 def create_interface():
     if 'device_data' not in session:
@@ -478,7 +478,6 @@ def create_interface():
             }), 500
             
     except Exception as e:
-        current_app.logger.error(f"Ошибка в create_interface: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Ошибка: {str(e)}'

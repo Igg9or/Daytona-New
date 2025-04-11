@@ -262,39 +262,34 @@
     
         // ========== Функции для работы с интерфейсами ==========
         function updateInterfaceRow(data) {
-    const rows = document.querySelectorAll('.interface-table tbody tr');
-    for (const row of rows) {
-        // Удаляем пробелы для сравнения (GigabitEthernet 0/1 -> GigabitEthernet0/1)
-        const rowName = row.cells[0].textContent.replace(/\s+/g, '');
-        const dataName = data.interface_name.replace(/\s+/g, '');
-        
-        if (rowName === dataName) {
-            // Форматируем имя с пробелом для отображения
-            row.cells[0].textContent = format_interface_display_name(data.interface_name);
-            row.cells[1].textContent = data.description;
-            
-            // Обновляем статус (и класс)
-            const statusCell = row.cells[2];
-            statusCell.textContent = data.status.toUpperCase();
-            statusCell.className = 'status-' + data.status;
-            
-            row.cells[3].textContent = data.vlan;
-            row.cells[4].textContent = data.duplex;
-            
-            // Форматируем скорость
-            let speedText = data.speed;
-            if (data.speed !== 'auto') {
-                speedText += ' Mbps';
-                if (data.speed === '1000') {
-                    speedText = '1 Gbps';
+            const rows = document.querySelectorAll('.interface-table tbody tr');
+            for (const row of rows) {
+                if (row.cells[0].textContent === data.interface_name) {
+                    // Обновляем ячейки
+                    row.cells[1].textContent = data.description;
+                    
+                    // Обновляем статус (и класс)
+                    const statusCell = row.cells[2];
+                    statusCell.textContent = data.status.toUpperCase();
+                    statusCell.className = 'status-' + data.status;
+                    
+                    row.cells[3].textContent = data.vlan;
+                    row.cells[4].textContent = data.duplex;
+                    
+                    // Форматируем скорость
+                    let speedText = data.speed;
+                    if (data.speed !== 'auto') {
+                        speedText += ' Mbps';
+                        if (data.speed === '1000' && data.interface_name.includes('GigabitEthernet')) {
+                            speedText = '1 Gbps';
+                        }
+                    }
+                    row.cells[5].textContent = speedText;
+                    
+                    break;
                 }
             }
-            row.cells[5].textContent = speedText;
-            
-            break;
         }
-    }
-}
     
         function findInterfaceByName(name) {
             const rows = document.querySelectorAll('.interface-table tbody tr');
@@ -443,19 +438,13 @@
             // Формируем имя интерфейса
             let interfaceName;
             switch(interfaceType) {
-    case 'physical':
-        interfaceName = `GigabitEthernet${interfaceNumber.replace(/\s+/g, '')}`;
-        break;
-    case 'logical':
-        interfaceName = `Loopback${interfaceNumber.replace(/\s+/g, '')}`;
-        break;
-    case 'svi':
-        interfaceName = `Vlan${interfaceNumber.replace(/\s+/g, '')}`;
-        break;
-    default:
-        showAlert('error', 'Неверный тип интерфейса');
-        return;
-}
+                case 'physical': interfaceName = `GigabitEthernet${interfaceNumber}`; break;
+                case 'logical': interfaceName = `Loopback${interfaceNumber}`; break;
+                case 'svi': interfaceName = `Vlan${interfaceNumber}`; break;
+                default:
+                    showAlert('error', 'Неверный тип интерфейса');
+                    return;
+            }
     
             // Собираем данные формы
             const formData = {

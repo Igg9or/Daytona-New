@@ -1,0 +1,26 @@
+
+
+BGPMONtest#
+BGPMONtest#terminal width 511
+BGPMONtest#terminal length 0
+BGPMONtest#
+BGPMONtest#
+BGPMONtest#
+BGPMONtest#configure terminal
+Enter configuration commands, one per line.  End with CNTL/Z.
+BGPMONtest(config)#
+BGPMONtest(config)#interface Loopback 4
+BGPMONtest(config-if)#ip address 192.168.0.2 255.255.255.0
+BGPMONtest(config-if)#mtu 1500
+% Interface Loopback4 does not support user settable mtu.
+BGPMONtest(config-if)#bandwidth 100000
+BGPMONtest(config-if)#duplex auto
+                       ^
+% Invalid input detected at '^' marker.
+
+BGPMONtest(config-if)#no shutdown
+BGPMONtest(config-if)#
+BGPMONtest(config-if)#end
+BGPMONtest#
+BGPMONtest#
+BGPMONtest#exit

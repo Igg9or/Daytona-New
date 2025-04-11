@@ -5,16 +5,6 @@ from netmiko import ConnectHandler, NetmikoTimeoutException, NetmikoAuthenticati
 import re
 from datetime import datetime
 import logging
-
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('device_connector.log'),
-        logging.StreamHandler()
-    ]
-)
 logger = logging.getLogger(__name__)
 
 # Тестовые учетные данные (для имитации успешной аутентификации)
@@ -550,11 +540,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 def create_interface_on_device(device_data, interface_data):
-    """Создание интерфейса на Cisco устройстве с правильным форматом имен"""
+    """Создание интерфейса на сетевом устройстве"""
     connection = None
     try:
+        device_type = device_data.get('device_type', 'Cisco').lower()
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        
         device_params = {
-            'device_type': 'cisco_ios',
+            'device_type': netmiko_device_type,
             'host': device_data['ip_address'],
             'username': device_data['username'],
             'password': device_data['password'],
@@ -573,13 +566,24 @@ def create_interface_on_device(device_data, interface_data):
                 connection.enable()
             
             commands = []
-            # Форматируем имя интерфейса с пробелом
-            interface_name = format_interface_name(interface_data['name'])
+            interface_name = interface_data['name']
+            
+            # Основные команды для создания интерфейса
             commands.append(f"interface {interface_name}")
+            
+            # Для SVI интерфейсов (VLAN)
+            if interface_data['type'] == 'svi':
+                if device_type == 'cisco':
+                    commands.append(f"interface {interface_name}")
+                else:  # Huawei
+                    commands.append(f"interface Vlanif {interface_name.replace('Vlan', '')}")
             
             # Настройка IP-адреса
             if interface_data.get('ip_address'):
-                commands.append(f"ip address {interface_data['ip_address']} {interface_data['netmask']}")
+                if device_type == 'huawei':
+                    commands.append(f"ip address {interface_data['ip_address']} {interface_data['netmask']}")
+                else:
+                    commands.append(f"ip address {interface_data['ip_address']} {interface_data['netmask']}")
             
             # Описание интерфейса
             if interface_data.get('description'):
@@ -593,14 +597,18 @@ def create_interface_on_device(device_data, interface_data):
             if interface_data.get('bandwidth'):
                 commands.append(f"bandwidth {interface_data['bandwidth']}")
             
-            # Режим дуплекса
-            if interface_data.get('duplex'):
-                commands.append(f"duplex {interface_data['duplex']}")
+            # Режим дуплекса (только для физических интерфейсов)
+            if interface_data['type'] == 'physical' and interface_data.get('duplex'):
+                if device_type == 'cisco':
+                    commands.append(f"duplex {interface_data['duplex']}")
             
             # Настройка VLAN для access-портов
-            if interface_data.get('vlan'):
-                commands.append(f"switchport access vlan {interface_data['vlan']}")
-                commands.append("switchport mode access")
+            if interface_data['type'] == 'physical' and interface_data.get('vlan'):
+                if device_type == 'huawei':
+                    commands.append(f"port default vlan {interface_data['vlan']}")
+                else:
+                    commands.append(f"switchport access vlan {interface_data['vlan']}")
+                    commands.append("switchport mode access")
             
             # Статус интерфейса
             if interface_data.get('status') == 'up':
@@ -617,8 +625,13 @@ def create_interface_on_device(device_data, interface_data):
                 raise Exception(f"Ошибка выполнения команд: {output}")
             
             # Сохранение конфигурации
-            save_output = connection.send_command('write memory')
-            logger.debug(f"Результат сохранения конфигурации:\n{save_output}")
+            if device_type == 'cisco':
+                save_output = connection.send_command('write memory')
+                logger.debug(f"Результат сохранения конфигурации:\n{save_output}")
+            else:  # Huawei
+                save_output = connection.send_command('save')
+                connection.send_command('y')  # Подтверждение
+                logger.debug(f"Результат сохранения конфигурации:\n{save_output}")
             
             return True, output
             
@@ -632,16 +645,3 @@ def create_interface_on_device(device_data, interface_data):
     except Exception as e:
         logger.error(f"Ошибка подключения для создания интерфейса: {str(e)}")
         return False, str(e)
-
-def format_interface_name(name):
-    """Форматирует имя интерфейса для Cisco IOS (добавляет пробелы)"""
-    # Для физических интерфейсов: GigabitEthernet0/1 -> GigabitEthernet 0/1
-    if name.startswith(('GigabitEthernet', 'FastEthernet', 'TenGigabitEthernet')):
-        return name[:len('GigabitEthernet')] + ' ' + name[len('GigabitEthernet'):]
-    # Для SVI интерфейсов: Vlan10 -> Vlan 10
-    elif name.startswith('Vlan'):
-        return name[:4] + ' ' + name[4:]
-    # Для loopback интерфейсов: Loopback0 -> Loopback 0
-    elif name.startswith('Loopback'):
-        return name[:8] + ' ' + name[8:]
-    return name

@@ -9,7 +9,6 @@ import re
 from datetime import datetime
 import logging
 from logging.handlers import RotatingFileHandler
-from device_connector import create_interface_on_device, connect_and_collect_data
 
 
 app = Flask(__name__, static_url_path='/static')
@@ -446,7 +445,6 @@ def generate_huawei_vlan_test_data():
             'svi_ip': '192.168.10.1'
         }
     ]
-
 @app.route('/create-interface', methods=['POST'])
 def create_interface():
     if 'device_data' not in session:
@@ -456,29 +454,17 @@ def create_interface():
         data = request.get_json()
         device_data = session['device_data']
         
-        # Реальное создание интерфейса на устройстве
-        success, result = create_interface_on_device(device_data, data)
+        # Здесь должна быть логика создания интерфейса на устройстве
+        # Временно возвращаем успешный ответ для тестирования
+        print(f"Создание интерфейса: {data}")
         
-        if success:
-            # Обновляем данные устройства после изменения
-            result = connect_and_collect_data(device_data)
-            if result['status'] == 'success':
-                session['device_status'] = json.dumps(result['data'])
-                session['last_update'] = datetime.now().isoformat()
-            
-            return jsonify({
-                'success': True,
-                'message': 'Интерфейс успешно создан',
-                'details': result
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': f'Ошибка при создании интерфейса: {result}'
-            }), 500
-            
+        return jsonify({
+            'success': True,
+            'message': 'Интерфейс создан (тестовый режим)',
+            'interface': data
+        })
+        
     except Exception as e:
-        current_app.logger.error(f"Ошибка в create_interface: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Ошибка: {str(e)}'
