@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Таблица маршрутизации</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .routing-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .routing-table th {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        
+        .routing-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            font-family: monospace;
+        }
+        
+        .routing-table tr:hover {
+            background-color: #f5f7fa;
+        }
+        
+        .route-type-D {
+            color: var(--success);
+            font-weight: bold;
+        }
+        
+        .route-type-C {
+            color: var(--primary);
+            font-weight: bold;
+        }
+        
+        .route-type-S {
+            color: var(--warning);
+            font-weight: bold;
+        }
+        
+        .route-type-O {
+            color: var(--danger);
+            font-weight: bold;
+        }
+        
+        .device-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Боковое меню (как в других шаблонах) -->
+    <div class="sidebar">
+        <!-- ... существующее меню ... -->
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-route"></i> Таблица маршрутизации
+                </h1>
+            </header>
+
+            <!-- Информация об устройстве -->
+            <div class="card">
+                <div class="device-info-header">
+                    <h2><i class="fas fa-info-circle"></i> Информация об устройстве</h2>
+                    <a href="/refresh-routing-table" class="btn">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </a>
+                </div>
+                <div class="detail-grid" style="grid-template-columns: 150px 1fr 150px 1fr;">
+                    <div class="detail-label">Модель:</div>
+                    <div class="detail-value">{{ device_info.model }}</div>
+                    
+                    <div class="detail-label">Версия ПО:</div>
+                    <div class="detail-value">{{ device_info.software_version }}</div>
+                    
+                    <div class="detail-label">IP-адрес:</div>
+                    <div class="detail-value">{{ device_info.ip_address }}</div>
+                    
+                    <div class="detail-label">Время работы:</div>
+                    <div class="detail-value">{{ device_info.uptime }}</div>
+                </div>
+            </div>
+
+            <!-- Таблица маршрутизации -->
+            <div class="card">
+                <h2><i class="fas fa-table"></i> Таблица маршрутизации</h2>
+                <table class="routing-table">
+                    <thead>
+                        <tr>
+                            <th>Тип</th>
+                            <th>Сеть назначения</th>
+                            <th>Маска</th>
+                            <th>Метрика</th>
+                            <th>Административное расстояние</th>
+                            <th>Next Hop</th>
+                            <th>Интерфейс</th>
+                            <th>Время</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for route in routing_table %}
+                        <tr>
+                            <td class="route-type-{{ route.type }}">{{ route.type }}</td>
+                            <td>{{ route.network }}</td>
+                            <td>{{ route.mask }}</td>
+                            <td>{{ route.metric }}</td>
+                            <td>{{ route.admin_distance }}</td>
+                            <td>{{ route.next_hop }}</td>
+                            <td>{{ route.interface }}</td>
+                            <td>{{ route.time }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

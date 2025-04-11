@@ -900,256 +900,77 @@ def get_interfaces_for_vlan(connection, vlan_id, device_type):
             return interfaces
     except Exception:
         return []
-
-@app.route('/routing-table')
-def routing_table():
-    if 'device_data' not in session:
-        return redirect(url_for('login'))
-    
-    device_info = {
-        'model': session['device_data'].get('device_type', 'Unknown'),
-        'software_version': 'N/A',
-        'ip_address': session['device_data'].get('ip_address', 'Unknown'),
-        'uptime': 'N/A'
-    }
-    
-    if 'device_status' in session:
-        device_status = json.loads(session['device_status'])
-        device_info['software_version'] = device_status.get('configuration', {}).get('software_version', 'N/A')
-        device_info['uptime'] = device_status.get('configuration', {}).get('uptime', 'N/A')
-    
-    # Получаем таблицу маршрутизации
-    routing_table = get_routing_table(session['device_data'])
-    
-    return render_template('routing_table.html',
-                         device_info=device_info,
-                         routing_table=routing_table)
-
-@app.route('/refresh-routing-table')
-def refresh_routing_table():
-    if 'device_data' not in session:
-        return redirect(url_for('login'))
-    
-    # Обновляем данные устройства
-    result = connect_and_collect_data(session['device_data'])
-    if result['status'] == 'success':
-        session['device_status'] = json.dumps(result['data'])
-        session['last_update'] = datetime.now().isoformat()
-    
-    return redirect(url_for('routing_table'))
-
-def get_routing_table(device_data):
-    """Получение таблицы маршрутизации с устройства"""
-    connection = None
-    try:
-        device_type = device_data.get('device_type', 'Cisco').lower()
-        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+@app.route('/get-vlan-interfaces')
+    def get_vlan_interfaces():
+        if 'device_data' not in session:
+            return jsonify({'success': False, 'message': 'Требуется авторизация'}), 401
         
-        connection = ConnectHandler(
-            device_type=netmiko_device_type,
-            host=device_data['ip_address'],
-            username=device_data['username'],
-            password=device_data['password'],
-            secret=device_data.get('secret', ''),
-            timeout=20
-        )
+        vlan_id = request.args.get('id')
+        if not vlan_id:
+            return jsonify({'success': False, 'message': 'Не указан ID VLAN'}), 400
         
-        if device_data.get('secret'):
-            connection.enable()
-        
-        if device_type == 'cisco':
-            output = connection.send_command('show ip route')
-            return parse_cisco_routing_table(output)
-        else:
-            output = connection.send_command('display ip routing-table')
-            return parse_huawei_routing_table(output)
+        try:
+            device_data = session['device_data']
+            device_type = device_data.get('device_type', 'Cisco').lower()
             
-    except Exception as e:
-        app.logger.error(f"Ошибка получения таблицы маршрутизации: {str(e)}")
-        return []
-    finally:
-        if connection:
-            connection.disconnect()
-
-def parse_cisco_routing_table(output):
-    """Парсинг таблицы маршрутизации Cisco"""
-    routes = []
-    for line in output.splitlines():
-        if line.startswith(('C', 'D', 'S', 'O', 'R', 'i')):
-            parts = line.split()
-            route = {
-                'type': parts[0],
-                'network': parts[1],
-                'mask': parts[2] if len(parts) > 2 else '255.255.255.255',
-                'admin_distance': parts[3].strip('[]') if '[' in parts[3] else '',
-                'metric': parts[4].strip('/') if '/' in parts[4] else '',
-                'next_hop': parts[5] if len(parts) > 5 else '',
-                'interface': parts[6] if len(parts) > 6 else '',
-                'time': parts[7] if len(parts) > 7 else ''
-            }
-            routes.append(route)
-    return routes
-
-def parse_huawei_routing_table(output):
-    """Парсинг таблицы маршрутизации Huawei"""
-    routes = []
-    for line in output.splitlines():
-        if line.startswith(('D', 'C', 'S', 'O', 'R', 'i')):
-            parts = line.split()
-            route = {
-                'type': parts[0],
-                'network': parts[1].split('/')[0],
-                'mask': parts[1].split('/')[1] if '/' in parts[1] else '32',
-                'admin_distance': parts[2],
-                'metric': parts[3],
-                'next_hop': parts[4] if len(parts) > 4 else '',
-                'interface': parts[5] if len(parts) > 5 else '',
-                'time': parts[6] if len(parts) > 6 else ''
-            }
-            routes.append(route)
-    return routes
-
-@app.route('/mac-table')
-def mac_table():
-    if 'device_data' not in session:
-        return redirect(url_for('login'))
-    
-    device_info = {
-        'model': session['device_data'].get('device_type', 'Unknown'),
-        'software_version': 'N/A',
-        'ip_address': session['device_data'].get('ip_address', 'Unknown'),
-        'uptime': 'N/A'
-    }
-    
-    if 'device_status' in session:
-        device_status = json.loads(session['device_status'])
-        device_info['software_version'] = device_status.get('configuration', {}).get('software_version', 'N/A')
-        device_info['uptime'] = device_status.get('configuration', {}).get('uptime', 'N/A')
-    
-    # Получаем таблицу коммутации
-    mac_table = get_mac_table(session['device_data'])
-    
-    return render_template('mac_table.html',
-                         device_info=device_info,
-                         mac_table=mac_table,
-                         last_update=session.get('last_update', 'N/A'))
-
-@app.route('/refresh-mac-table')
-def refresh_mac_table():
-    if 'device_data' not in session:
-        return redirect(url_for('login'))
-    
-    # Обновляем данные устройства
-    result = connect_and_collect_data(session['device_data'])
-    if result['status'] == 'success':
-        session['device_status'] = json.dumps(result['data'])
-        session['last_update'] = datetime.now().isoformat()
-    
-    return redirect(url_for('mac_table'))
-
-def get_mac_table(device_data):
-    """Получение MAC-таблицы с устройства"""
-    connection = None
-    try:
-        device_type = device_data.get('device_type', 'Cisco').lower()
-        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
-        
-        connection = ConnectHandler(
-            device_type=netmiko_device_type,
-            host=device_data['ip_address'],
-            username=device_data['username'],
-            password=device_data['password'],
-            secret=device_data.get('secret', ''),
-            timeout=20
-        )
-        
-        if device_data.get('secret'):
-            connection.enable()
-        
-        if device_type == 'cisco':
-            output = connection.send_command('show mac address-table', delay_factor=2)
-            return parse_cisco_mac_table(output)
-        else:
-            output = connection.send_command('display mac-address', delay_factor=2)
-            return parse_huawei_mac_table(output)
+            connection = ConnectHandler(
+                device_type='cisco_ios' if device_type == 'cisco' else 'huawei',
+                host=device_data['ip_address'],
+                username=device_data['username'],
+                password=device_data['password'],
+                secret=device_data.get('secret', ''),
+                timeout=20
+            )
             
-    except Exception as e:
-        app.logger.error(f"Ошибка получения MAC-таблицы: {str(e)}")
-        return None
-    finally:
-        if connection:
-            connection.disconnect()
+            try:
+                connection.enable()
+                interfaces = []
+                
+                if device_type == 'cisco':
+                    output = connection.send_command(f'show vlan id {vlan_id}')
+                    for line in output.splitlines():
+                        if re.match(r'^\s*[A-Za-z]+\d+/\d+', line):
+                            parts = line.split()
+                            intf_name = parts[0]
+                            intf_status = parts[-2].lower()
+                            interfaces.append({
+                                'name': intf_name,
+                                'status': intf_status,
+                                'mode': 'access' if 'access' in line.lower() else 'trunk'
+                            })
+                else:  # Huawei
+                    output = connection.send_command(f'display vlan {vlan_id}')
+                    for line in output.splitlines():
+                        if 'Untagged' in line or 'Tagged' in line:
+                            ports = line.split(':')[1].strip().split()
+                            for port in ports:
+                                intf_output = connection.send_command(f'display interface {port}')
+                                status = 'up' if 'up' in intf_output.lower() else 'down'
+                                interfaces.append({
+                                    'name': port,
+                                    'status': status,
+                                    'mode': 'access' if 'Untagged' in line else 'trunk'
+                                })
+                
+                return jsonify({
+                    'success': True,
+                    'interfaces': interfaces
+                })
+                
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'message': f'Ошибка получения интерфейсов: {str(e)}'
+                })
+            finally:
+                connection.disconnect()
+                
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'Ошибка подключения: {str(e)}'
+            }), 500
 
-@app.route('/arp-table')
-def arp_table():
-    if 'device_data' not in session:
-        return redirect(url_for('login'))
-    
-    device_info = {
-        'model': session['device_data'].get('device_type', 'Unknown'),
-        'software_version': 'N/A',
-        'ip_address': session['device_data'].get('ip_address', 'Unknown'),
-        'uptime': 'N/A'
-    }
-    
-    if 'device_status' in session:
-        device_status = json.loads(session['device_status'])
-        device_info['software_version'] = device_status.get('configuration', {}).get('software_version', 'N/A')
-        device_info['uptime'] = device_status.get('configuration', {}).get('uptime', 'N/A')
-    
-    # Получаем ARP таблицу
-    arp_table = get_arp_table(session['device_data'])
-    
-    return render_template('arp_table.html',
-                         device_info=device_info,
-                         arp_table=arp_table,
-                         last_update=session.get('last_update', 'N/A'))
-
-@app.route('/refresh-arp-table')
-def refresh_arp_table():
-    if 'device_data' not in session:
-        return redirect(url_for('login'))
-    
-    # Обновляем данные устройства
-    result = connect_and_collect_data(session['device_data'])
-    if result['status'] == 'success':
-        session['device_status'] = json.dumps(result['data'])
-        session['last_update'] = datetime.now().isoformat()
-    
-    return redirect(url_for('arp_table'))
-
-def get_arp_table(device_data):
-    """Получение ARP таблицы с устройства"""
-    connection = None
-    try:
-        device_type = device_data.get('device_type', 'Cisco').lower()
-        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
-        
-        connection = ConnectHandler(
-            device_type=netmiko_device_type,
-            host=device_data['ip_address'],
-            username=device_data['username'],
-            password=device_data['password'],
-            secret=device_data.get('secret', ''),
-            timeout=20
-        )
-        
-        if device_data.get('secret'):
-            connection.enable()
-        
-        if device_type == 'cisco':
-            output = connection.send_command('show arp', delay_factor=2)
-            return parse_cisco_arp_table(output)
-        else:
-            output = connection.send_command('display arp', delay_factor=2)
-            return parse_huawei_arp_table(output)
-            
-    except Exception as e:
-        app.logger.error(f"Ошибка получения ARP таблицы: {str(e)}")
-        return None
-    finally:
-        if connection:
-            connection.disconnect()
 
 if __name__ == '__main__':
     app.run(debug=True)

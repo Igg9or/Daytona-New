@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Таблица коммутации</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .mac-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        
+        .mac-table th {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        
+        .mac-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            font-family: monospace;
+        }
+        
+        .mac-table tr:hover {
+            background-color: #f5f7fa;
+        }
+        
+        .vlan-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
+        }
+        
+        .mac-address {
+            font-family: monospace;
+            font-weight: bold;
+        }
+        
+        .port-cell {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .port-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .status-up { background-color: var(--success); }
+        .status-down { background-color: var(--danger); }
+        
+        .device-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .last-update {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: var(--gray);
+            text-align: right;
+        }
+        
+        .empty-table {
+            text-align: center;
+            padding: 30px;
+            color: var(--gray);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/daytona_logo.png') }}" alt="Daytona Logo" class="sidebar-logo">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item">
+                <a href="/device-status"><i class="fas fa-tachometer-alt"></i> Обзор системы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interfaces"><i class="fas fa-network-wired"></i> Интерфейсы</a>
+            </li>
+            <li class="menu-item has-submenu">
+                <a href="#"><i class="fas fa-table"></i> Вывод таблиц</a>
+                <ul class="submenu">
+                    <li class="menu-item">
+                        <a href="/routing-table"><i class="fas fa-route"></i> Маршрутизации</a>
+                    </li>
+                    <li class="menu-item active">
+                        <a href="/mac-table"><i class="fas fa-ethernet"></i> Коммутации</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/arp-table"><i class="fas fa-address-book"></i> ARP</a>
+                    </li>
+                </ul>
+            </li>
+            <li class="menu-item">
+                <a href="/vlan-info"><i class="fas fa-sitemap"></i> VLAN</a>
+            </li>
+            <li class="menu-item has-submenu">
+                <a href="#"><i class="fas fa-cogs"></i> Дополнительно</a>
+                <ul class="submenu">
+                    <li class="menu-item">
+                        <a href="/neighbors"><i class="fas fa-link"></i> Соседи</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/logs"><i class="fas fa-clipboard-list"></i> Логи</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/security"><i class="fas fa-shield-alt"></i> Безопасность</a>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-ethernet"></i> Таблица коммутации (MAC-адреса)
+                    <span class="device-ip">{{ device_info.ip_address }}</span>
+                </h1>
+                <div class="dashboard-actions">
+                    <a href="/refresh-mac-table" class="btn btn-refresh">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </a>
+                    <button class="btn" onclick="toggleAgeType()">
+                        <i class="fas fa-clock"></i> 
+                        <span id="ageTypeLabel">Показать время</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Информация об устройстве -->
+            <div class="card">
+                <div class="device-info-header">
+                    <h2><i class="fas fa-info-circle"></i> Информация об устройстве</h2>
+                </div>
+                <div class="detail-grid" style="grid-template-columns: 150px 1fr 150px 1fr;">
+                    <div class="detail-label">Модель:</div>
+                    <div class="detail-value">{{ device_info.model }}</div>
+                    
+                    <div class="detail-label">Версия ПО:</div>
+                    <div class="detail-value">{{ device_info.software_version }}</div>
+                    
+                    <div class="detail-label">IP-адрес:</div>
+                    <div class="detail-value">{{ device_info.ip_address }}</div>
+                    
+                    <div class="detail-label">Время работы:</div>
+                    <div class="detail-value">{{ device_info.uptime }}</div>
+                </div>
+            </div>
+
+            <!-- Таблица коммутации -->
+            <div class="card">
+                <h2><i class="fas fa-table"></i> Таблица MAC-адресов</h2>
+                
+                {% if mac_table %}
+                <table class="mac-table">
+                    <thead>
+                        <tr>
+                            <th>VLAN</th>
+                            <th>MAC-адрес</th>
+                            <th>Тип</th>
+                            <th>Порт</th>
+                            <th class="age-header">Возраст (сек)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in mac_table %}
+                        <tr>
+                            <td><span class="vlan-badge">{{ entry.vlan }}</span></td>
+                            <td class="mac-address">{{ entry.mac_address }}</td>
+                            <td>{{ entry.type }}</td>
+                            <td class="port-cell">
+                                <span class="port-status status-{{ entry.port_status }}"></span>
+                                {{ entry.port }}
+                            </td>
+                            <td class="age-cell">{{ entry.age }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-table">
+                    <i class="fas fa-info-circle"></i> Таблица коммутации пуста или не может быть загружена
+                </div>
+                {% endif %}
+                
+                <div class="last-update">
+                    <i class="fas fa-clock"></i> Последнее обновление: {{ last_update }}
+                    <span id="totalMacCount" style="margin-left: 20px;">Всего MAC-адресов: {{ mac_table|length if mac_table else 0 }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Переключение между отображением возраста в секундах и времени последнего обновления
+        function toggleAgeType() {
+            const ageCells = document.querySelectorAll('.age-cell');
+            const ageTypeLabel = document.getElementById('ageTypeLabel');
+            
+            ageCells.forEach(cell => {
+                if (cell.dataset.seconds === undefined) {
+                    cell.dataset.seconds = cell.textContent;
+                    const date = new Date();
+                    date.setSeconds(date.getSeconds() - parseInt(cell.textContent));
+                    cell.textContent = date.toLocaleTimeString();
+                    ageTypeLabel.textContent = 'Показать возраст';
+                } else {
+                    cell.textContent = cell.dataset.seconds;
+                    delete cell.dataset.seconds;
+                    ageTypeLabel.textContent = 'Показать время';
+                }
+            });
+        }
+        
+        // Инициализация данных возраста
+        document.addEventListener('DOMContentLoaded', () => {
+            const ageCells = document.querySelectorAll('.age-cell');
+            ageCells.forEach(cell => {
+                cell.dataset.seconds = cell.textContent;
+            });
+        });
+    </script>
+</body>
+</html>

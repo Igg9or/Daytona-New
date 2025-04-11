@@ -273,75 +273,29 @@
                 button.textContent = 'Скрыть ▲';
             }
         }
-       
-         // Глобальные переменные для хранения состояния
-    let currentEditingVlan = null;
-    let allInterfaces = [];
-
-    // Открытие модального окна с дополнительной информацией
-    async function openVlanEditModal(id, name, description, portMode) {
-        currentEditingVlan = { id, name, description, port_mode: portMode };
-        
-        // Заполняем форму
+        // Открытие модального окна редактирования
+    function openVlanEditModal(id, name, description, portMode) {
         document.getElementById('modalVlanId').textContent = id;
         document.getElementById('editVlanId').value = id;
         document.getElementById('editVlanName').value = name || '';
         document.getElementById('editVlanDescription').value = description || '';
         document.getElementById('editPortMode').value = portMode || 'access';
         
-        // Загружаем интерфейсы для этого VLAN
-        try {
-            const response = await fetch(`/get-vlan-interfaces?id=${id}`);
-            const data = await response.json();
-            
-            if (data.success && data.interfaces) {
-                allInterfaces = data.interfaces;
-                updateInterfaceList();
-            }
-        } catch (error) {
-            console.error('Ошибка загрузки интерфейсов:', error);
-        }
-        
         document.getElementById('vlanEditModal').style.display = 'block';
     }
 
-    // Обновление списка интерфейсов в модальном окне
-    function updateInterfaceList() {
-        const container = document.getElementById('vlanInterfacesList');
-        container.innerHTML = '';
-        
-        if (allInterfaces.length === 0) {
-            container.innerHTML = '<p>Нет интерфейсов в этом VLAN</p>';
-            return;
-        }
-        
-        const list = document.createElement('ul');
-        list.className = 'interface-list';
-        
-        allInterfaces.forEach(intf => {
-            const item = document.createElement('li');
-            item.className = 'interface-item';
-            item.innerHTML = `
-                <span>${intf.name}</span>
-                <span class="interface-status ${intf.status}">${intf.status.toUpperCase()}</span>
-            `;
-            list.appendChild(item);
-        });
-        
-        container.appendChild(list);
+    // Закрытие модального окна
+    function closeVlanEditModal() {
+        document.getElementById('vlanEditModal').style.display = 'none';
     }
 
     // Обработка отправки формы
     document.getElementById('vlanEditForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const submitBtn = this.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
-        
+        const vlanId = document.getElementById('editVlanId').value;
         const formData = {
-            id: document.getElementById('editVlanId').value,
+            id: vlanId,
             name: document.getElementById('editVlanName').value,
             description: document.getElementById('editVlanDescription').value,
             port_mode: document.getElementById('editPortMode').value
@@ -361,18 +315,36 @@
             if (!response.ok) throw new Error(result.message || 'Ошибка сервера');
             if (!result.success) throw new Error(result.message || 'Не удалось обновить VLAN');
             
+            // Закрываем модальное окно и обновляем таблицу
+            closeVlanEditModal();
             showAlert('success', 'VLAN успешно обновлен!');
-            setTimeout(() => window.location.reload(), 1500);
+            setTimeout(() => window.location.reload(), 1000);
             
         } catch (error) {
             console.error('Ошибка:', error);
             showAlert('error', 'Ошибка при обновлении VLAN: ' + error.message);
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
         }
     });
-        
+
+    // Вспомогательная функция для показа уведомлений
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.innerHTML = `
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()">&times;</button>
+        `;
+        document.querySelector('.container').prepend(alertDiv);
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
+
+    // Закрытие модального окна при клике вне его
+    window.onclick = function(event) {
+        const modal = document.getElementById('vlanEditModal');
+        if (event.target == modal) {
+            closeVlanEditModal();
+        }
+    }
     </script>
 </body>
 </html>

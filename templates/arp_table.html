@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARP таблица</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .arp-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        
+        .arp-table th {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        
+        .arp-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            font-family: monospace;
+        }
+        
+        .arp-table tr:hover {
+            background-color: #f5f7fa;
+        }
+        
+        .ip-address {
+            font-weight: bold;
+        }
+        
+        .mac-address {
+            font-family: monospace;
+            font-weight: bold;
+        }
+        
+        .interface-chip {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
+            font-size: 0.85em;
+        }
+        
+        .age-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background-color: #f0f0f0;
+            font-size: 0.8em;
+        }
+        
+        .type-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .type-dynamic { background-color: #e8f5e9; color: var(--success-dark); }
+        .type-static { background-color: #e3f2fd; color: var(--primary-dark); }
+        .type-incomplete { background-color: #ffebee; color: var(--danger-dark); }
+        
+        .device-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .last-update {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: var(--gray);
+            text-align: right;
+        }
+        
+        .empty-table {
+            text-align: center;
+            padding: 30px;
+            color: var(--gray);
+            font-style: italic;
+        }
+        
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        
+        .filter-input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            flex-grow: 1;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/daytona_logo.png') }}" alt="Daytona Logo" class="sidebar-logo">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item">
+                <a href="/device-status"><i class="fas fa-tachometer-alt"></i> Обзор системы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interfaces"><i class="fas fa-network-wired"></i> Интерфейсы</a>
+            </li>
+            <li class="menu-item has-submenu">
+                <a href="#"><i class="fas fa-table"></i> Вывод таблиц</a>
+                <ul class="submenu">
+                    <li class="menu-item">
+                        <a href="/routing-table"><i class="fas fa-route"></i> Маршрутизации</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/mac-table"><i class="fas fa-ethernet"></i> Коммутации</a>
+                    </li>
+                    <li class="menu-item active">
+                        <a href="/arp-table"><i class="fas fa-address-book"></i> ARP</a>
+                    </li>
+                </ul>
+            </li>
+            <li class="menu-item">
+                <a href="/vlan-info"><i class="fas fa-sitemap"></i> VLAN</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-address-book"></i> ARP таблица
+                    <span class="device-ip">{{ device_info.ip_address }}</span>
+                </h1>
+                <div class="dashboard-actions">
+                    <a href="/refresh-arp-table" class="btn btn-refresh">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </a>
+                </div>
+            </header>
+
+            <!-- Информация об устройстве -->
+            <div class="card">
+                <div class="device-info-header">
+                    <h2><i class="fas fa-info-circle"></i> Информация об устройстве</h2>
+                </div>
+                <div class="detail-grid" style="grid-template-columns: 150px 1fr 150px 1fr;">
+                    <div class="detail-label">Модель:</div>
+                    <div class="detail-value">{{ device_info.model }}</div>
+                    
+                    <div class="detail-label">Версия ПО:</div>
+                    <div class="detail-value">{{ device_info.software_version }}</div>
+                    
+                    <div class="detail-label">IP-адрес:</div>
+                    <div class="detail-value">{{ device_info.ip_address }}</div>
+                    
+                    <div class="detail-label">Время работы:</div>
+                    <div class="detail-value">{{ device_info.uptime }}</div>
+                </div>
+            </div>
+
+            <!-- Таблица ARP -->
+            <div class="card">
+                <h2><i class="fas fa-table"></i> Таблица ARP</h2>
+                
+                <div class="filter-controls">
+                    <input type="text" id="arpFilter" class="filter-input" placeholder="Фильтр по IP или MAC..." onkeyup="filterArpTable()">
+                    <select id="typeFilter" class="filter-input" onchange="filterArpTable()">
+                        <option value="">Все типы</option>
+                        <option value="dynamic">Dynamic</option>
+                        <option value="static">Static</option>
+                        <option value="incomplete">Incomplete</option>
+                    </select>
+                </div>
+                
+                {% if arp_table %}
+                <table class="arp-table" id="arpTable">
+                    <thead>
+                        <tr>
+                            <th>IP-адрес</th>
+                            <th>MAC-адрес</th>
+                            <th>Интерфейс</th>
+                            <th>Тип</th>
+                            <th>Возраст</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in arp_table %}
+                        <tr class="arp-entry" data-type="{{ entry.type|lower }}">
+                            <td class="ip-address">{{ entry.ip_address }}</td>
+                            <td class="mac-address">{{ entry.mac_address }}</td>
+                            <td><span class="interface-chip">{{ entry.interface }}</span></td>
+                            <td>
+                                <span class="type-badge type-{{ entry.type|lower }}">
+                                    {{ entry.type }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="age-badge" title="Обновлено {{ entry.last_update }}">
+                                    {{ entry.age }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-table">
+                    <i class="fas fa-info-circle"></i> ARP таблица пуста или не может быть загружена
+                </div>
+                {% endif %}
+                
+                <div class="last-update">
+                    <i class="fas fa-clock"></i> Последнее обновление: {{ last_update }}
+                    <span id="totalArpCount" style="margin-left: 20px;">Всего записей: {{ arp_table|length if arp_table else 0 }}</span>
+                    <span id="filteredArpCount" style="margin-left: 20px;"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Фильтрация таблицы ARP
+        function filterArpTable() {
+            const filter = document.getElementById('arpFilter').value.toUpperCase();
+            const typeFilter = document.getElementById('typeFilter').value;
+            const rows = document.querySelectorAll('#arpTable tbody tr.arp-entry');
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                const ip = row.querySelector('.ip-address').textContent.toUpperCase();
+                const mac = row.querySelector('.mac-address').textContent.toUpperCase();
+                const type = row.getAttribute('data-type');
+                
+                const matchesFilter = ip.includes(filter) || mac.includes(filter);
+                const matchesType = !typeFilter || type === typeFilter;
+                
+                if (matchesFilter && matchesType) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            document.getElementById('filteredArpCount').textContent = `Отфильтровано: ${visibleCount}`;
+        }
+        
+        // Инициализация фильтра при загрузке
+        document.addEventListener('DOMContentLoaded', () => {
+            filterArpTable();
+        });
+    </script>
+</body>
+</html>

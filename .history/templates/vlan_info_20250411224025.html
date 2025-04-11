@@ -263,116 +263,176 @@
         </div>
     </div>
     <script>
-        function togglePorts(portsId, button) {
-            const portsList = document.getElementById(portsId);
-            portsList.classList.toggle('collapsed');
+        // Глобальные переменные для хранения состояния
+        let currentEditingVlan = null;
+        let allInterfaces = [];
+    
+        // Открытие модального окна с дополнительной информацией
+        async function openVlanEditModal(id, name, description, portMode) {
+            currentEditingVlan = { id, name, description, port_mode: portMode };
             
-            if (portsList.classList.contains('collapsed')) {
-                button.textContent = 'Показать все ▼';
-            } else {
-                button.textContent = 'Скрыть ▲';
-            }
-        }
-       
-         // Глобальные переменные для хранения состояния
-    let currentEditingVlan = null;
-    let allInterfaces = [];
-
-    // Открытие модального окна с дополнительной информацией
-    async function openVlanEditModal(id, name, description, portMode) {
-        currentEditingVlan = { id, name, description, port_mode: portMode };
-        
-        // Заполняем форму
-        document.getElementById('modalVlanId').textContent = id;
-        document.getElementById('editVlanId').value = id;
-        document.getElementById('editVlanName').value = name || '';
-        document.getElementById('editVlanDescription').value = description || '';
-        document.getElementById('editPortMode').value = portMode || 'access';
-        
-        // Загружаем интерфейсы для этого VLAN
-        try {
-            const response = await fetch(`/get-vlan-interfaces?id=${id}`);
-            const data = await response.json();
+            // Заполняем форму
+            document.getElementById('modalVlanId').textContent = id;
+            document.getElementById('editVlanId').value = id;
+            document.getElementById('editVlanName').value = name || '';
+            document.getElementById('editVlanDescription').value = description || '';
+            document.getElementById('editPortMode').value = portMode || 'access';
             
-            if (data.success && data.interfaces) {
-                allInterfaces = data.interfaces;
-                updateInterfaceList();
+            // Загружаем интерфейсы для этого VLAN
+            try {
+                const response = await fetch(`/get-vlan-interfaces?id=${id}`);
+                const data = await response.json();
+                
+                if (data.success && data.interfaces) {
+                    allInterfaces = data.interfaces;
+                    updateInterfaceList();
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки интерфейсов:', error);
             }
-        } catch (error) {
-            console.error('Ошибка загрузки интерфейсов:', error);
+            
+            document.getElementById('vlanEditModal').style.display = 'block';
         }
-        
-        document.getElementById('vlanEditModal').style.display = 'block';
-    }
-
-    // Обновление списка интерфейсов в модальном окне
-    function updateInterfaceList() {
-        const container = document.getElementById('vlanInterfacesList');
-        container.innerHTML = '';
-        
-        if (allInterfaces.length === 0) {
-            container.innerHTML = '<p>Нет интерфейсов в этом VLAN</p>';
-            return;
-        }
-        
-        const list = document.createElement('ul');
-        list.className = 'interface-list';
-        
-        allInterfaces.forEach(intf => {
-            const item = document.createElement('li');
-            item.className = 'interface-item';
-            item.innerHTML = `
-                <span>${intf.name}</span>
-                <span class="interface-status ${intf.status}">${intf.status.toUpperCase()}</span>
-            `;
-            list.appendChild(item);
-        });
-        
-        container.appendChild(list);
-    }
-
-    // Обработка отправки формы
-    document.getElementById('vlanEditForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const submitBtn = this.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
-        
-        const formData = {
-            id: document.getElementById('editVlanId').value,
-            name: document.getElementById('editVlanName').value,
-            description: document.getElementById('editVlanDescription').value,
-            port_mode: document.getElementById('editPortMode').value
-        };
-        
-        try {
-            const response = await fetch('/update-vlan', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
+    
+        // Обновление списка интерфейсов в модальном окне
+        function updateInterfaceList() {
+            const container = document.getElementById('vlanInterfacesList');
+            container.innerHTML = '';
+            
+            if (allInterfaces.length === 0) {
+                container.innerHTML = '<p>Нет интерфейсов в этом VLAN</p>';
+                return;
+            }
+            
+            const list = document.createElement('ul');
+            list.className = 'interface-list';
+            
+            allInterfaces.forEach(intf => {
+                const item = document.createElement('li');
+                item.className = 'interface-item';
+                item.innerHTML = `
+                    <span>${intf.name}</span>
+                    <span class="interface-status ${intf.status}">${intf.status.toUpperCase()}</span>
+                `;
+                list.appendChild(item);
             });
             
-            const result = await response.json();
-            
-            if (!response.ok) throw new Error(result.message || 'Ошибка сервера');
-            if (!result.success) throw new Error(result.message || 'Не удалось обновить VLAN');
-            
-            showAlert('success', 'VLAN успешно обновлен!');
-            setTimeout(() => window.location.reload(), 1500);
-            
-        } catch (error) {
-            console.error('Ошибка:', error);
-            showAlert('error', 'Ошибка при обновлении VLAN: ' + error.message);
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
+            container.appendChild(list);
         }
-    });
-        
+    
+        // Обработка отправки формы
+        document.getElementById('vlanEditForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+            
+            const formData = {
+                id: document.getElementById('editVlanId').value,
+                name: document.getElementById('editVlanName').value,
+                description: document.getElementById('editVlanDescription').value,
+                port_mode: document.getElementById('editPortMode').value
+            };
+            
+            try {
+                const response = await fetch('/update-vlan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) throw new Error(result.message || 'Ошибка сервера');
+                if (!result.success) throw new Error(result.message || 'Не удалось обновить VLAN');
+                
+                showAlert('success', 'VLAN успешно обновлен!');
+                setTimeout(() => window.location.reload(), 1500);
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showAlert('error', 'Ошибка при обновлении VLAN: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+    
+        // Добавьте этот endpoint в app.py
+        @app.route('/get-vlan-interfaces')
+        def get_vlan_interfaces():
+            if 'device_data' not in session:
+                return jsonify({'success': False, 'message': 'Требуется авторизация'}), 401
+            
+            vlan_id = request.args.get('id')
+            if not vlan_id:
+                return jsonify({'success': False, 'message': 'Не указан ID VLAN'}), 400
+            
+            try:
+                device_data = session['device_data']
+                device_type = device_data.get('device_type', 'Cisco').lower()
+                
+                connection = ConnectHandler(
+                    device_type='cisco_ios' if device_type == 'cisco' else 'huawei',
+                    host=device_data['ip_address'],
+                    username=device_data['username'],
+                    password=device_data['password'],
+                    secret=device_data.get('secret', ''),
+                    timeout=20
+                )
+                
+                try:
+                    connection.enable()
+                    interfaces = []
+                    
+                    if device_type == 'cisco':
+                        output = connection.send_command(f'show vlan id {vlan_id}')
+                        for line in output.splitlines():
+                            if re.match(r'^\s*[A-Za-z]+\d+/\d+', line):
+                                parts = line.split()
+                                intf_name = parts[0]
+                                intf_status = parts[-2].lower()
+                                interfaces.append({
+                                    'name': intf_name,
+                                    'status': intf_status,
+                                    'mode': 'access' if 'access' in line.lower() else 'trunk'
+                                })
+                    else:  # Huawei
+                        output = connection.send_command(f'display vlan {vlan_id}')
+                        for line in output.splitlines():
+                            if 'Untagged' in line or 'Tagged' in line:
+                                ports = line.split(':')[1].strip().split()
+                                for port in ports:
+                                    intf_output = connection.send_command(f'display interface {port}')
+                                    status = 'up' if 'up' in intf_output.lower() else 'down'
+                                    interfaces.append({
+                                        'name': port,
+                                        'status': status,
+                                        'mode': 'access' if 'Untagged' in line else 'trunk'
+                                    })
+                    
+                    return jsonify({
+                        'success': True,
+                        'interfaces': interfaces
+                    })
+                    
+                except Exception as e:
+                    return jsonify({
+                        'success': False,
+                        'message': f'Ошибка получения интерфейсов: {str(e)}'
+                    })
+                finally:
+                    connection.disconnect()
+                    
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'message': f'Ошибка подключения: {str(e)}'
+                }), 500
     </script>
 </body>
 </html>

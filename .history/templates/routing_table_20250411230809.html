@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Таблица маршрутизации</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .routing-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        
+        .routing-table th {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        
+        .routing-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            font-family: monospace;
+        }
+        
+        .routing-table tr:hover {
+            background-color: #f5f7fa;
+        }
+        
+        .route-type {
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .route-type-D { color: var(--success); } /* Direct */
+        .route-type-C { color: var(--success); } /* Connected */
+        .route-type-S { color: var(--primary); } /* Static */
+        .route-type-R { color: var(--warning); } /* RIP */
+        .route-type-O { color: #8a2be2; }       /* OSPF */
+        .route-type-i { color: #ff69b4; }       /* IS-IS */
+        .route-type-B { color: #a52a2a; }       /* BGP */
+        
+        .device-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .protocol-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            background-color: #f0f0f0;
+        }
+        
+        .badge-D { background-color: #e8f5e9; color: var(--success); }
+        .badge-C { background-color: #e8f5e9; color: var(--success); }
+        .badge-S { background-color: #e3f2fd; color: var(--primary); }
+        .badge-R { background-color: #fff8e1; color: var(--warning); }
+        .badge-O { background-color: #f3e5f5; color: #8a2be2; }
+        .badge-i { background-color: #fce4ec; color: #ff69b4; }
+        .badge-B { background-color: #efebe9; color: #a52a2a; }
+        
+        .last-update {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: var(--gray);
+            text-align: right;
+        }
+        
+        .route-details {
+            font-size: 0.8em;
+            color: var(--gray);
+        }
+    </style>
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/daytona_logo.png') }}" alt="Daytona Logo" class="sidebar-logo">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item">
+                <a href="/device-status"><i class="fas fa-tachometer-alt"></i> Обзор системы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interfaces"><i class="fas fa-network-wired"></i> Интерфейсы</a>
+            </li>
+            <li class="menu-item has-submenu">
+                <a href="#"><i class="fas fa-table"></i> Вывод таблиц</a>
+                <ul class="submenu">
+                    <li class="menu-item active">
+                        <a href="/routing-table"><i class="fas fa-route"></i> Маршрутизации</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/mac-table"><i class="fas fa-ethernet"></i> Коммутации</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/arp-table"><i class="fas fa-address-book"></i> ARP</a>
+                    </li>
+                </ul>
+            </li>
+            <li class="menu-item">
+                <a href="/vlan-info"><i class="fas fa-sitemap"></i> VLAN</a>
+            </li>
+            <li class="menu-item has-submenu">
+                <a href="#"><i class="fas fa-cogs"></i> Дополнительно</a>
+                <ul class="submenu">
+                    <li class="menu-item">
+                        <a href="/neighbors"><i class="fas fa-link"></i> Соседи</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/logs"><i class="fas fa-clipboard-list"></i> Логи</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/security"><i class="fas fa-shield-alt"></i> Безопасность</a>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-route"></i> Таблица маршрутизации
+                    <span class="device-ip">{{ device_info.ip_address }}</span>
+                </h1>
+                <div class="dashboard-actions">
+                    <a href="/refresh-routing-table" class="btn btn-refresh">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </a>
+                </div>
+            </header>
+
+            <!-- Информация об устройстве -->
+            <div class="card">
+                <div class="device-info-header">
+                    <h2><i class="fas fa-info-circle"></i> Информация об устройстве</h2>
+                </div>
+                <div class="detail-grid" style="grid-template-columns: 150px 1fr 150px 1fr;">
+                    <div class="detail-label">Модель:</div>
+                    <div class="detail-value">{{ device_info.model }}</div>
+                    
+                    <div class="detail-label">Версия ПО:</div>
+                    <div class="detail-value">{{ device_info.software_version }}</div>
+                    
+                    <div class="detail-label">IP-адрес:</div>
+                    <div class="detail-value">{{ device_info.ip_address }}</div>
+                    
+                    <div class="detail-label">Время работы:</div>
+                    <div class="detail-value">{{ device_info.uptime }}</div>
+                </div>
+            </div>
+
+            <!-- Таблица маршрутизации -->
+            <div class="card">
+                <h2><i class="fas fa-table"></i> Таблица маршрутизации</h2>
+                
+                {% if routing_table %}
+                <table class="routing-table">
+                    <thead>
+                        <tr>
+                            <th>Тип</th>
+                            <th>Сеть назначения</th>
+                            <th>Маска/Префикс</th>
+                            <th>Адм. расстояние</th>
+                            <th>Метрика</th>
+                            <th>Next Hop</th>
+                            <th>Интерфейс</th>
+                            <th>Время</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for route in routing_table %}
+                        <tr>
+                            <td class="route-type route-type-{{ route.type }}">
+                                <span class="protocol-badge badge-{{ route.type }}">{{ route.type }}</span>
+                            </td>
+                            <td>{{ route.network }}</td>
+                            <td>
+                                {% if route.mask %}
+                                    {{ route.mask }}
+                                {% elif route.prefix %}
+                                    /{{ route.prefix }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ route.admin_distance if route.admin_distance else '-' }}</td>
+                            <td>{{ route.metric if route.metric else '-' }}</td>
+                            <td>
+                                {% if route.next_hop == '0.0.0.0' %}
+                                    directly connected
+                                {% else %}
+                                    {{ route.next_hop if route.next_hop else '-' }}
+                                {% endif %}
+                            </td>
+                            <td>{{ route.interface if route.interface else '-' }}</td>
+                            <td>
+                                {% if route.time %}
+                                    <span class="route-details">{{ route.time }}</span>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-triangle"></i> Не удалось загрузить таблицу маршрутизации
+                </div>
+                {% endif %}
+                
+                <div class="last-update">
+                    <i class="fas fa-clock"></i> Последнее обновление: {{ last_update }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Font Awesome для иконок -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js"></script>
+</body>
+</html>
