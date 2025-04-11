@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детали VLAN</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .vlan-details-container {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .vlan-detail-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .vlan-detail-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+        
+        .detail-section {
+            margin-bottom: 25px;
+        }
+        
+        .detail-section-title {
+            font-size: 1.1rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary-light);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 12px;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: var(--dark);
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        
+        .detail-value {
+            font-weight: 500;
+            color: var(--dark);
+            word-break: break-word;
+        }
+        
+        .vlan-selector {
+            margin-bottom: 30px;
+        }
+        
+        select {
+            width: 100%;
+            max-width: 300px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            background-color: white;
+            cursor: pointer;
+            transition: border 0.3s;
+        }
+        
+        select:hover {
+            border-color: var(--primary);
+        }
+        
+        .device-info {
+            background: var(--primary-light);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .port-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: var(--primary-light);
+            border-radius: 4px;
+            margin: 3px;
+            font-family: monospace;
+            font-size: 0.85em;
+            transition: background 0.2s;
+        }
+        
+        .port-badge:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .ports-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 5px;
+        }
+        
+        .status-active {
+            color: var(--success);
+            font-weight: bold;
+        }
+        
+        .status-inactive {
+            color: var(--danger);
+            font-weight: bold;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .vlan-detail-card {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @media (max-width: 768px) {
+            .vlan-details-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .detail-grid {
+                grid-template-columns: 120px 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/daytona_logo.png') }}" alt="Daytona Logo" class="sidebar-logo">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item">
+                <a href="/device-status">Обзор системы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interfaces">Интерфейсы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/vlan-info">Таблица VLAN</a>
+            </li>
+            <li class="menu-item active">
+                <a href="/vlan-details">Информация о VLAN</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-sitemap"></i> Детальная информация VLAN
+                </h1>
+            </header>
+
+            <!-- Информация об устройстве -->
+            <div class="device-info">
+                <div class="detail-grid">
+                    <div class="detail-label">Модель устройства:</div>
+                    <div class="detail-value">{{ device_info.model }}</div>
+                    
+                    <div class="detail-label">Версия ПО:</div>
+                    <div class="detail-value">{{ device_info.software_version }}</div>
+                    
+                    <div class="detail-label">IP-адрес:</div>
+                    <div class="detail-value">{{ device_info.ip_address }}</div>
+                </div>
+            </div>
+
+            <!-- Выбор VLAN -->
+            <div class="vlan-selector">
+                <select id="vlanSelect" onchange="loadVlanDetails(this.value)">
+                    <option value="">-- Выберите VLAN --</option>
+                    {% for vlan in vlans %}
+                    <option value="{{ vlan.id }}">VLAN {{ vlan.id }} - {{ vlan.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Детали VLAN -->
+            <div id="vlanDetails" class="vlan-details-container" style="display: none;">
+                <div class="vlan-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title">
+                            <i class="fas fa-info-circle"></i> Основная информация
+                        </h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">ID VLAN:</div>
+                            <div class="detail-value" id="vlanId"></div>
+                            
+                            <div class="detail-label">Имя VLAN:</div>
+                            <div class="detail-value" id="vlanName"></div>
+                            
+                            <div class="detail-label">Статус:</div>
+                            <div class="detail-value"><span id="vlanStatus"></span></div>
+                            
+                            <div class="detail-label">Описание:</div>
+                            <div class="detail-value" id="vlanDescription"></div>
+                            
+                            <div class="detail-label">MAC-адрес:</div>
+                            <div class="detail-value" id="vlanMac"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="vlan-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title">
+                            <i class="fas fa-cog"></i> Настройки сети
+                        </h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">IP-адрес (SVI):</div>
+                            <div class="detail-value" id="vlanIp"></div>
+                            
+                            <div class="detail-label">Маска подсети:</div>
+                            <div class="detail-value" id="vlanNetmask"></div>
+                            
+                            <div class="detail-label">MTU:</div>
+                            <div class="detail-value" id="vlanMtu"></div>
+                            
+                            <div class="detail-label">DHCP:</div>
+                            <div class="detail-value" id="vlanDhcp"></div>
+                            
+                            <div class="detail-label">Входящий трафик:</div>
+                            <div class="detail-value" id="vlanTrafficIn"></div>
+                            
+                            <div class="detail-label">Исходящий трафик:</div>
+                            <div class="detail-value" id="vlanTrafficOut"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="vlan-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title">
+                            <i class="fas fa-ethernet"></i> Принадлежащие порты
+                        </h3>
+                        <div class="ports-container" id="vlanPorts"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Сохраняем оригинальную структуру vlanDetails
+            const vlanDetailsContainer = document.getElementById('vlanDetails');
+            const originalHTML = vlanDetailsContainer.innerHTML;
+            
+            // Функция для безопасного установления текста
+            function setSafeText(elementId, text) {
+                const element = document.getElementById(elementId);
+                if (element) element.textContent = text;
+            }
+    
+            // Функция для отображения состояния загрузки
+            function showLoadingState() {
+                vlanDetailsContainer.innerHTML = `
+                    <div class="loading-spinner" style="grid-column: 1/-1">
+                        <i class="fas fa-spinner fa-spin"></i> Загрузка данных VLAN...
+                    </div>
+                `;
+                vlanDetailsContainer.style.display = 'grid';
+            }
+    
+            // Функция для отображения ошибки
+            function showErrorState(message) {
+                vlanDetailsContainer.innerHTML = `
+                    <div class="error-message" style="grid-column: 1/-1">
+                        <i class="fas fa-exclamation-triangle"></i> ${message}
+                    </div>
+                `;
+            }
+    
+            // Функция для отображения данных VLAN
+            function showVlanData(data) {
+                try {
+                    console.log('[showVlanData] Начало отображения данных', data.id);
+                    
+                    // 1. Сохраняем текущее состояние скролла
+                    const scrollPosition = window.scrollY || window.pageYOffset;
+                    
+                    // 2. Восстанавливаем оригинальную структуру
+                    const detailsContainer = document.getElementById('vlanDetails');
+                    if (!detailsContainer) {
+                        console.error('Контейнер vlanDetails не найден');
+                        return;
+                    }
+                    
+                    detailsContainer.innerHTML = `
+                        <div class="vlan-detail-card">
+                            <div class="detail-section">
+                                <h3 class="detail-section-title">
+                                    <i class="fas fa-info-circle"></i> Основная информация
+                                </h3>
+                                <div class="detail-grid">
+                                    <div class="detail-label">ID VLAN:</div>
+                                    <div class="detail-value" id="vlanId"></div>
+                                    
+                                    <div class="detail-label">Имя VLAN:</div>
+                                    <div class="detail-value" id="vlanName"></div>
+                                    
+                                    <div class="detail-label">Статус:</div>
+                                    <div class="detail-value"><span id="vlanStatus"></span></div>
+                                    
+                                    <div class="detail-label">Описание:</div>
+                                    <div class="detail-value" id="vlanDescription"></div>
+                                    
+                                    <div class="detail-label">MAC-адрес:</div>
+                                    <div class="detail-value" id="vlanMac"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="vlan-detail-card">
+                            <div class="detail-section">
+                                <h3 class="detail-section-title">
+                                    <i class="fas fa-cog"></i> Настройки сети
+                                </h3>
+                                <div class="detail-grid">
+                                    <div class="detail-label">IP-адрес (SVI):</div>
+                                    <div class="detail-value" id="vlanIp"></div>
+                                    
+                                    <div class="detail-label">Маска подсети:</div>
+                                    <div class="detail-value" id="vlanNetmask"></div>
+                                    
+                                    <div class="detail-label">MTU:</div>
+                                    <div class="detail-value" id="vlanMtu"></div>
+                                    
+                                    <div class="detail-label">DHCP:</div>
+                                    <div class="detail-value" id="vlanDhcp"></div>
+                                    
+                                    <div class="detail-label">Входящий трафик:</div>
+                                    <div class="detail-value" id="vlanTrafficIn"></div>
+                                    
+                                    <div class="detail-label">Исходящий трафик:</div>
+                                    <div class="detail-value" id="vlanTrafficOut"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="vlan-detail-card">
+                            <div class="detail-section">
+                                <h3 class="detail-section-title">
+                                    <i class="fas fa-ethernet"></i> Принадлежащие порты
+                                </h3>
+                                <div class="ports-container" id="vlanPorts"></div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // 3. Принудительный reflow для стабилизации DOM
+                    void detailsContainer.offsetHeight;
+                    
+                    // 4. Заполняем данные с проверкой элементов
+                    const setValue = (id, value, defaultValue = '') => {
+                        const element = document.getElementById(id);
+                        if (element) {
+                            element.textContent = value || defaultValue;
+                        } else {
+                            console.warn(`Элемент ${id} не найден`);
+                        }
+                    };
+                    
+                    setValue('vlanId', data.id);
+                    setValue('vlanName', data.name, 'Не указано');
+                    
+                    const statusElement = document.getElementById('vlanStatus');
+                    if (statusElement) {
+                        statusElement.textContent = data.status === 'active' ? 'Активен' : 'Неактивен';
+                        statusElement.className = data.status === 'active' ? 'status-active' : 'status-inactive';
+                    }
+                    
+                    setValue('vlanDescription', data.description, 'Не указано');
+                    setValue('vlanMac', data.mac, 'N/A');
+                    setValue('vlanIp', data.ip, 'Не назначен');
+                    setValue('vlanNetmask', data.netmask, 'N/A');
+                    setValue('vlanMtu', data.mtu, '1500');
+                    setValue('vlanDhcp', data.dhcp, 'Disabled');
+                    setValue('vlanTrafficIn', data.traffic_in, '0 bps');
+                    setValue('vlanTrafficOut', data.traffic_out, '0 bps');
+                    
+                    // 5. Обрабатываем порты
+                    const portsContainer = document.getElementById('vlanPorts');
+                    if (portsContainer) {
+                        portsContainer.innerHTML = '';
+                        
+                        if (data.ports && data.ports.length > 0) {
+                            data.ports.forEach(port => {
+                                const portElement = document.createElement('span');
+                                portElement.className = 'port-badge';
+                                portElement.textContent = port;
+                                portsContainer.appendChild(portElement);
+                            });
+                        } else {
+                            portsContainer.textContent = 'Нет портов в этом VLAN';
+                            portsContainer.style.color = '#999';
+                            portsContainer.style.fontStyle = 'italic';
+                        }
+                    }
+                    
+                    // 6. Восстанавливаем скролл
+                    window.scrollTo({
+                        top: scrollPosition,
+                        behavior: 'auto'
+                    });
+                    
+                    // 7. Добавляем тестовый элемент для отслеживания
+                    const testElement = document.createElement('div');
+                    testElement.id = 'vlanDebugElement';
+                    testElement.style.position = 'fixed';
+                    testElement.style.bottom = '10px';
+                    testElement.style.right = '10px';
+                    testElement.style.backgroundColor = 'red';
+                    testElement.style.color = 'white';
+                    testElement.style.padding = '5px';
+                    testElement.style.zIndex = '9999';
+                    testElement.textContent = `VLAN ${data.id} loaded at ${new Date().toLocaleTimeString()}`;
+                    
+                    // Удаляем предыдущий тестовый элемент, если есть
+                    const oldDebugElement = document.getElementById('vlanDebugElement');
+                    if (oldDebugElement) oldDebugElement.remove();
+                    
+                    document.body.appendChild(testElement);
+                    
+                    console.log('[showVlanData] Данные успешно отображены');
+                } catch (error) {
+                    console.error('[showVlanData] Ошибка:', error);
+                    
+                    // Отображаем сообщение об ошибке в интерфейсе
+                    const detailsContainer = document.getElementById('vlanDetails');
+                    if (detailsContainer) {
+                        detailsContainer.innerHTML = `
+                            <div class="error-message" style="grid-column: 1/-1">
+                                <i class="fas fa-exclamation-triangle"></i> 
+                                Ошибка отображения данных: ${error.message}
+                            </div>
+                        `;
+                    }
+                }
+            }
+    
+            // Основная функция загрузки данных VLAN
+            async function loadVlanDetails(vlanId) {
+                console.log('Начало загрузки VLAN:', vlanId);
+                if (!vlanId) {
+                    vlanDetailsContainer.style.display = 'none';
+                    return;
+                }
+    
+                try {
+                    showLoadingState();
+                    
+                    const response = await fetch(`/get-vlan-details?id=${vlanId}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    showVlanData(data);
+                } catch (error) {
+                    console.error('Ошибка при загрузке VLAN:', error);
+                    showErrorState(error.message);
+                }
+                console.log('Данные получены:', data);
+            }
+    
+            // Инициализация обработчика событий
+            const vlanSelect = document.getElementById('vlanSelect');
+            if (vlanSelect) {
+                vlanSelect.addEventListener('change', function() {
+                    loadVlanDetails(this.value);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
