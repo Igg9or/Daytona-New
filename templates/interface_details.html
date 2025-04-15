@@ -44,6 +44,40 @@
             width: 100%;
             max-width: 300px;
         }
+        .loading-spinner {
+        padding: 20px;
+        text-align: center;
+        color: var(--primary);
+    }
+    
+    .alert {
+        padding: 15px;
+        border-radius: 4px;
+        margin: 10px 0;
+    }
+    
+    .alert-error {
+        background-color: #ffebee;
+        color: #c62828;
+        border-left: 4px solid #c62828;
+    }
+    
+    .status-badge {
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.8em;
+        font-weight: bold;
+    }
+    
+    .status-up {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    .status-down {
+        background-color: #ffebee;
+        color: #c62828;
+    }
     </style>
 </head>
 <body>
@@ -211,43 +245,95 @@
         return;
     }
 
+    // Показываем индикатор загрузки
+    const detailsContainer = document.getElementById('interfaceDetails');
+    detailsContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Загрузка данных...</div>';
+    detailsContainer.style.display = 'block';
+
     fetch(`/get-interface-details?name=${encodeURIComponent(interfaceName)}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Ошибка сети');
+            }
+            return response.json();
+        })
         .then(data => {
-            const detailsContainer = document.getElementById('interfaceDetails');
-            detailsContainer.style.display = 'grid';
-            
-            // Основная информация
-            document.getElementById('interfaceName').textContent = data.name;
-            document.getElementById('interfaceDescription').textContent = data.description || 'Не указано';
-            document.getElementById('interfaceType').textContent = data.type || 'N/A';
-            
-            // Статус
-            const statusBadge = document.getElementById('interfaceStatus');
-            statusBadge.textContent = data.status === 'up' ? 'Active' : 'Down';
-            statusBadge.className = `status-badge status-${data.status}`;
-            
-            // Характеристики
-            document.getElementById('interfaceSpeed').textContent = data.speed || 'N/A';
-            document.getElementById('interfaceDuplex').textContent = data.duplex || 'N/A';
-            document.getElementById('interfaceMtu').textContent = data.mtu || '1500';
-            document.getElementById('interfaceMac').textContent = data.mac_address || 'N/A';
-            
-            // IP-настройки
-            document.getElementById('interfaceIp').textContent = data.ip_address || 'Не назначен';
-            document.getElementById('interfaceNetmask').textContent = data.netmask || 'N/A';
-            
-            // Статистика
-            document.getElementById('interfaceInputRate').textContent = data.input_rate || 'N/A';
-            document.getElementById('interfaceOutputRate').textContent = data.output_rate || 'N/A';
-            document.getElementById('interfaceInputErrors').textContent = data.input_errors || '0';
-            document.getElementById('interfaceOutputErrors').textContent = data.output_errors || '0';
-            document.getElementById('interfaceLastInput').textContent = data.last_input || 'N/A';
-            document.getElementById('interfaceLastOutput').textContent = data.last_output || 'N/A';
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            // Восстанавливаем оригинальную структуру
+            detailsContainer.innerHTML = `
+                <div class="interface-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title"><i class="fas fa-info-circle"></i> Основная информация</h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">Имя интерфейса:</div>
+                            <div class="detail-value">${data.name}</div>
+                            <div class="detail-label">Описание:</div>
+                            <div class="detail-value">${data.description || 'Не указано'}</div>
+                            <div class="detail-label">Тип:</div>
+                            <div class="detail-value">${data.type || 'N/A'}</div>
+                            <div class="detail-label">Статус:</div>
+                            <div class="detail-value">
+                                <span class="status-badge status-${data.status}">${data.status === 'up' ? 'Up' : 'Down'}</span>
+                            </div>
+                            <div class="detail-label">Uptime:</div>
+                            <div class="detail-value">${data.uptime || 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="interface-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title"><i class="fas fa-tachometer-alt"></i> Характеристики</h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">Скорость:</div>
+                            <div class="detail-value">${data.speed || 'N/A'}</div>
+                            <div class="detail-label">Дуплекс:</div>
+                            <div class="detail-value">${data.duplex || 'N/A'}</div>
+                            <div class="detail-label">MTU:</div>
+                            <div class="detail-value">${data.mtu || '1500'}</div>
+                            <div class="detail-label">MAC-адрес:</div>
+                            <div class="detail-value">${data.mac_address || 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="interface-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title"><i class="fas fa-network-wired"></i> IP-настройки</h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">IP-адрес:</div>
+                            <div class="detail-value">${data.ip_address || 'Не назначен'}</div>
+                            <div class="detail-label">Маска:</div>
+                            <div class="detail-value">${data.netmask || 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="interface-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title"><i class="fas fa-chart-line"></i> Статистика</h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">Входящий трафик:</div>
+                            <div class="detail-value">${data.input_rate || '0 Kbit/s'}</div>
+                            <div class="detail-label">Исходящий трафик:</div>
+                            <div class="detail-value">${data.output_rate || '0 Kbit/s'}</div>
+                            <div class="detail-label">Вход. ошибки:</div>
+                            <div class="detail-value">${data.input_errors || '0'}</div>
+                            <div class="detail-label">Выход. ошибки:</div>
+                            <div class="detail-value">${data.output_errors || '0'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Ошибка при загрузке данных интерфейса');
+            detailsContainer.innerHTML = `
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i> 
+                    Ошибка при загрузке данных: ${error.message}
+                </div>
+            `;
         });
 }
     </script>

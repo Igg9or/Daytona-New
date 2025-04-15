@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детали интерфейса</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .interface-details {
+            margin-top: 20px;
+        }
+        .detail-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .detail-row {
+            display: flex;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .detail-label {
+            font-weight: bold;
+            width: 200px;
+            color: var(--dark);
+        }
+        .detail-value {
+            flex: 1;
+        }
+        .status-up {
+            color: var(--success);
+        }
+        .status-down {
+            color: var(--danger);
+        }
+        select {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            width: 100%;
+            max-width: 300px;
+        }
+        .loading-spinner {
+        padding: 20px;
+        text-align: center;
+        color: var(--primary);
+    }
+    
+    .alert {
+        padding: 15px;
+        border-radius: 4px;
+        margin: 10px 0;
+    }
+    
+    .alert-error {
+        background-color: #ffebee;
+        color: #c62828;
+        border-left: 4px solid #c62828;
+    }
+    
+    .status-badge {
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.8em;
+        font-weight: bold;
+    }
+    
+    .status-up {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    .status-down {
+        background-color: #ffebee;
+        color: #c62828;
+    }
+    </style>
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/daytona_logo.png') }}" alt="Daytona Logo" class="sidebar-logo">
+            <h2>Меню</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item active">
+                <a href="/device-status">Обзор системы</a>
+            </li>
+            <li class="menu-item">
+                <a href="/interfaces">Интерфейсы</a>
+            </li>
+            <li class="menu-item active">
+                <a href="/interface-details">Детали интерфейса</a>
+            </li>
+            <li class="menu-item">
+                <a href="/vlan-info">Информация о VLAN</a>
+            </li>
+            <li class="menu-item">
+                <a href="/vlan-details">Данные о конкретном VLAN</a>
+            </li>
+            <li class="menu-item">
+                <a href="/device-config"><i class="fas fa-file-code"></i> Конфигурация устройства</a>
+            </li>
+            <li class="menu-item">
+                <a href="/device-logs"><i class="fas fa-clipboard-list"></i> Логи устройства</a>
+            </li>
+            <li class="menu-item has-submenu">
+                <a href="#"><i class="fas fa-table"></i> Вывод таблиц</a>
+                <ul class="submenu">
+                    <li class="menu-item active">
+                        <a href="/routing-table"><i class="fas fa-route"></i> Маршрутизации</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/mac-table"><i class="fas fa-ethernet"></i> Коммутации</a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/arp-table"><i class="fas fa-address-book"></i> ARP</a>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <div class="container">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-network-wired"></i> Детальная информация интерфейса
+                </h1>
+            </header>
+
+            <div class="card">
+                <h2>Выберите интерфейс</h2>
+                <select id="interfaceSelect" onchange="loadInterfaceDetails(this.value)">
+                    <option value="">-- Выберите интерфейс --</option>
+                    {% for intf in interfaces %}
+                    <option value="{{ intf.name }}">{{ intf.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="interfaceDetails" class="interface-details-container" style="display: none;">
+                <div class="interface-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title">
+                            <i class="fas fa-info-circle"></i> Основная информация
+                        </h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">Имя интерфейса:</div>
+                            <div class="detail-value" id="interfaceName"></div>
+                            
+                            <div class="detail-label">Описание:</div>
+                            <div class="detail-value" id="interfaceDescription">Не указано</div>
+                            
+                            <div class="detail-label">Тип:</div>
+                            <div class="detail-value" id="interfaceType">N/A</div>
+                            
+                            <div class="detail-label">Статус:</div>
+                            <div class="detail-value">
+                                <span id="interfaceStatus" class="status-badge status-down">Down</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="interface-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title">
+                            <i class="fas fa-tachometer-alt"></i> Характеристики
+                        </h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">Скорость:</div>
+                            <div class="detail-value" id="interfaceSpeed">N/A</div>
+                            
+                            <div class="detail-label">Дуплекс:</div>
+                            <div class="detail-value" id="interfaceDuplex">N/A</div>
+                            
+                            <div class="detail-label">MTU:</div>
+                            <div class="detail-value" id="interfaceMtu">N/A</div>
+                            
+                            <div class="detail-label">MAC-адрес:</div>
+                            <div class="detail-value" id="interfaceMac">N/A</div>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="interface-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title">
+                            <i class="fas fa-network-wired"></i> IP-настройки
+                        </h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">IP-адрес:</div>
+                            <div class="detail-value" id="interfaceIp">Не назначен</div>
+                            
+                            <div class="detail-label">Маска:</div>
+                            <div class="detail-value" id="interfaceNetmask">N/A</div>
+                            
+                            <div class="detail-label">Широковещательный:</div>
+                            <div class="detail-value" id="interfaceBroadcast">N/A</div>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="interface-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title">
+                            <i class="fas fa-chart-line"></i> Статистика
+                        </h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">Входящий трафик:</div>
+                            <div class="detail-value" id="interfaceInputRate">N/A</div>
+                            
+                            <div class="detail-label">Исходящий трафик:</div>
+                            <div class="detail-value" id="interfaceOutputRate">N/A</div>
+                            
+                            <div class="detail-label">Вход. ошибки:</div>
+                            <div class="detail-value" id="interfaceInputErrors">0</div>
+                            
+                            <div class="detail-label">Выход. ошибки:</div>
+                            <div class="detail-value" id="interfaceOutputErrors">0</div>
+                            
+                            <div class="detail-label">Последний вход:</div>
+                            <div class="detail-value" id="interfaceLastInput">N/A</div>
+                            
+                            <div class="detail-label">Последний выход:</div>
+                            <div class="detail-value" id="interfaceLastOutput">N/A</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function loadInterfaceDetails(interfaceName) {
+    if (!interfaceName) {
+        document.getElementById('interfaceDetails').style.display = 'none';
+        return;
+    }
+
+    // Показываем индикатор загрузки
+    const detailsContainer = document.getElementById('interfaceDetails');
+    detailsContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Загрузка данных...</div>';
+    detailsContainer.style.display = 'block';
+
+    fetch(`/get-interface-details?name=${encodeURIComponent(interfaceName)}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Ошибка сети');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            // Восстанавливаем оригинальную структуру
+            detailsContainer.innerHTML = `
+                <div class="interface-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title"><i class="fas fa-info-circle"></i> Основная информация</h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">Имя интерфейса:</div>
+                            <div class="detail-value">${data.name}</div>
+                            <div class="detail-label">Описание:</div>
+                            <div class="detail-value">${data.description || 'Не указано'}</div>
+                            <div class="detail-label">Тип:</div>
+                            <div class="detail-value">${data.type || 'N/A'}</div>
+                            <div class="detail-label">Статус:</div>
+                            <div class="detail-value">
+                                <span class="status-badge status-${data.status}">${data.status === 'up' ? 'Up' : 'Down'}</span>
+                            </div>
+                            <div class="detail-label">Uptime:</div>
+                            <div class="detail-value">${data.uptime || 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="interface-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title"><i class="fas fa-tachometer-alt"></i> Характеристики</h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">Скорость:</div>
+                            <div class="detail-value">${data.speed || 'N/A'}</div>
+                            <div class="detail-label">Дуплекс:</div>
+                            <div class="detail-value">${data.duplex || 'N/A'}</div>
+                            <div class="detail-label">MTU:</div>
+                            <div class="detail-value">${data.mtu || '1500'}</div>
+                            <div class="detail-label">MAC-адрес:</div>
+                            <div class="detail-value">${data.mac_address || 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="interface-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title"><i class="fas fa-network-wired"></i> IP-настройки</h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">IP-адрес:</div>
+                            <div class="detail-value">${data.ip_address || 'Не назначен'}</div>
+                            <div class="detail-label">Маска:</div>
+                            <div class="detail-value">${data.netmask || 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="interface-detail-card">
+                    <div class="detail-section">
+                        <h3 class="detail-section-title"><i class="fas fa-chart-line"></i> Статистика</h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">Входящий трафик:</div>
+                            <div class="detail-value">${data.input_rate || '0 Kbit/s'}</div>
+                            <div class="detail-label">Исходящий трафик:</div>
+                            <div class="detail-value">${data.output_rate || '0 Kbit/s'}</div>
+                            <div class="detail-label">Вход. ошибки:</div>
+                            <div class="detail-value">${data.input_errors || '0'}</div>
+                            <div class="detail-label">Выход. ошибки:</div>
+                            <div class="detail-value">${data.output_errors || '0'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            detailsContainer.innerHTML = `
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i> 
+                    Ошибка при загрузке данных: ${error.message}
+                </div>
+            `;
+        });
+}
+    </script>
+</body>
+</html>

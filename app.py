@@ -9,8 +9,9 @@ import re
 from datetime import datetime
 import logging
 from logging.handlers import RotatingFileHandler
-from device_connector import create_interface_on_device, connect_and_collect_data, parse_cisco_arp_table, parse_huawei_arp_table 
-
+from device_connector import create_interface_on_device,parse_eltex_routing_table, connect_and_collect_data, parse_cisco_arp_table, parse_huawei_arp_table, parse_eltex_interface_details
+import random
+from device_connector import parse_eltex_logs
 
 app = Flask(__name__, static_url_path='/static')
 app.secret_key = 'your-secret-key'  # Ваш секретный ключ
@@ -107,10 +108,14 @@ def interfaces():
     # Используем данные из сессии, если они есть
     if 'device_status' in session:
         device_status = json.loads(session['device_status'])
-        if 'interfaces' in device_status:
-            return render_template('interfaces.html', interfaces=device_status['interfaces'])
+        interfaces_data = device_status.get('interfaces', [])
+        return render_template('interfaces.html', interfaces=interfaces_data)
     
-    # Иначе генерируем тестовые данные
+    # Для Eltex устройств возвращаем пустой список, так как данные должны быть в сессии
+    if device_type.lower() == 'eltex':
+        return render_template('interfaces.html', interfaces=[])
+    
+    # Иначе генерируем тестовые данные для Cisco/Huawei
     if device_type.lower() == 'huawei':
         interfaces_data = [
             {
@@ -210,7 +215,7 @@ def get_interface_details():
     device_type = device_data.get('device_type', 'Cisco').lower()
     
     try:
-        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei' if device_type == 'huawei' else 'eltex'
         device_params = {
             'device_type': netmiko_device_type,
             'host': device_data['ip_address'],
@@ -231,21 +236,18 @@ def get_interface_details():
                 connection.enable()
             
             # Получаем детальную информацию об интерфейсе
-            if device_type == 'huawei':
+            if device_type == 'eltex':
+                details_cmd = f'show interfaces {interface_name}'
+                details = connection.send_command(details_cmd, delay_factor=2)
+                app.logger.debug(f"Полученные данные:\n{details[:500]}...")
+                interface_data = parse_eltex_interface_details(details)
+            elif device_type == 'huawei':
                 details_cmd = f'display interface {interface_name}'
-            else:
-                details_cmd = f'show interface {interface_name}'
-            
-            app.logger.debug(f"Отправка команды: {details_cmd}")
-            details = connection.send_command(details_cmd, delay_factor=2)
-            app.logger.debug(f"Полученные данные:\n{details[:500]}...")  # Логируем первые 500 символов
-            
-            if not details:
-                raise ValueError("Пустой ответ от устройства")
-            
-            if device_type == 'huawei':
+                details = connection.send_command(details_cmd, delay_factor=2)
                 interface_data = parse_huawei_interface_details(details)
             else:
+                details_cmd = f'show interface {interface_name}'
+                details = connection.send_command(details_cmd, delay_factor=2)
                 interface_data = parse_cisco_interface_details(details)
             
             interface_data['name'] = interface_name
@@ -371,7 +373,7 @@ def get_vlan_info(device_data):
     connection = None
     try:
         device_type = device_data.get('device_type', 'Cisco').lower()
-        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei' if device_type == 'huawei' else 'eltex'
         
         device_params = {
             'device_type': netmiko_device_type,
@@ -397,6 +399,9 @@ def get_vlan_info(device_data):
                 vlan_output = connection.send_command('display vlan', delay_factor=2)
                 svi_output = connection.send_command('display ip interface brief | include Vlanif', delay_factor=2)
                 vlans = parse_huawei_vlan_info(vlan_output, svi_output)
+            elif device_type == 'eltex':
+                vlan_output = connection.send_command('show vlan', delay_factor=2)
+                vlans = parse_eltex_vlan_info(vlan_output)
             else:
                 vlan_output = connection.send_command('show vlan brief', delay_factor=2)
                 svi_output = connection.send_command('show ip interface brief | include Vlan', delay_factor=2)
@@ -421,6 +426,54 @@ def get_vlan_info(device_data):
     except Exception as e:
         app.logger.error(f"Ошибка подключения: {str(e)}", exc_info=True)
         return []
+    
+def parse_eltex_vlan_info(output):
+    """Парсинг информации о VLAN для Eltex устройств"""
+    vlans = []
+    
+    try:
+        lines = output.splitlines()
+        start_processing = False
+        
+        for line in lines:
+            line = line.strip()
+            
+            # Пропускаем заголовки
+            if 'Vlan' in line and 'Name' in line and 'Tagged Ports' in line:
+                start_processing = True
+                continue
+                
+            if not start_processing or not line or line.startswith('----'):
+                continue
+                
+            # Разбираем строку с VLAN
+            parts = re.split(r'\s{2,}', line)
+            if len(parts) >= 4:
+                vlan_id = parts[0].strip()
+                vlan_name = parts[1].strip() if len(parts) > 1 and parts[1].strip() != '-' else ''
+                tagged_ports = parts[2].strip() if len(parts) > 2 else ''
+                untagged_ports = parts[3].strip() if len(parts) > 3 else ''
+                created_by = parts[4].strip() if len(parts) > 4 else 'D'
+                
+                vlans.append({
+                    'id': vlan_id,
+                    'name': vlan_name,
+                    'status': 'active',  # ELTEX не показывает статус, предполагаем активный
+                    'port_mode': 'hybrid',  # ELTEX поддерживает и tagged и untagged порты
+                    'ports': f"Tagged: {tagged_ports}, Untagged: {untagged_ports}" if tagged_ports else untagged_ports,
+                    'access_vlan': vlan_id if not tagged_ports else None,
+                    'allowed_vlans': tagged_ports if tagged_ports else None,
+                    'mac_addresses': None,
+                    'svi_ip': None,
+                    'description': '',
+                    'created_by': created_by
+                })
+                
+    except Exception as e:
+        app.logger.error(f"Ошибка парсинга VLAN информации Eltex: {str(e)}")
+    
+    return vlans
+
     
 def parse_cisco_vlan_info(vlan_output, svi_output):
     """Парсинг информации о VLAN для Cisco устройств с портами"""
@@ -943,7 +996,11 @@ def get_routing_table(device_data):
     connection = None
     try:
         device_type = device_data.get('device_type', 'Cisco').lower()
-        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        netmiko_device_type = {
+            'cisco': 'cisco_ios',
+            'huawei': 'huawei',
+            'eltex': 'eltex'
+        }.get(device_type, 'cisco_ios')
         
         connection = ConnectHandler(
             device_type=netmiko_device_type,
@@ -958,11 +1015,16 @@ def get_routing_table(device_data):
             connection.enable()
         
         if device_type == 'cisco':
-            output = connection.send_command('show ip route')
+            output = connection.send_command('show ip route', delay_factor=2)
             return parse_cisco_routing_table(output)
-        else:
-            output = connection.send_command('display ip routing-table')
+        elif device_type == 'huawei':
+            output = connection.send_command('display ip routing-table', delay_factor=2)
             return parse_huawei_routing_table(output)
+        elif device_type == 'eltex':
+            output = connection.send_command('show ip route', delay_factor=2)
+            return parse_eltex_routing_table(output)
+        else:
+            return []
             
     except Exception as e:
         app.logger.error(f"Ошибка получения таблицы маршрутизации: {str(e)}")
@@ -970,6 +1032,73 @@ def get_routing_table(device_data):
     finally:
         if connection:
             connection.disconnect()
+
+def parse_eltex_routing_table(output):
+    """Парсинг вывода Eltex 'show ip route'"""
+    routes = []
+    
+    for line in output.splitlines():
+        if not line.strip() or line.startswith('Maximum Parallel Paths') or line.startswith('Load balancing') or line.startswith('IP Forwarding') or line.startswith('Codes:') or line.startswith('[d/m]:'):
+            continue
+            
+        # Обработка маршрутов
+        if line.strip() and line[0].isalpha() and len(line.split()) >= 3:
+            parts = line.split()
+            route_type = parts[0][0]  # Первый символ - тип маршрута
+            
+            # Для маршрутов типа "O IA" (OSPF inter-area)
+            if len(parts[0]) > 1 and parts[0][1] == '*':
+                route_type = parts[0][0]
+                
+            network = parts[1]
+            mask_or_prefix = None
+            admin_distance = None
+            metric = None
+            next_hop = None
+            interface = None
+            time_info = None
+            
+            # Обработка разных форматов вывода
+            if 'is directly connected' in line:
+                # Пример: C    192.168.1.0/24 is directly connected, te1/0/1
+                interface = line.split(',')[-1].strip()
+                next_hop = '0.0.0.0'
+                if '/' in network:
+                    network, mask_or_prefix = network.split('/')
+            elif 'via' in line:
+                # Пример: S    0.0.0.0/0 [1/2] via 172.23.88.1, 150:27:04, oob
+                via_index = parts.index('via')
+                if '/' in network:
+                    network, mask_or_prefix = network.split('/')
+                
+                # Извлекаем административное расстояние и метрику
+                if '[' in parts[2]:
+                    adm_metric = parts[2].strip('[]')
+                    admin_distance, metric = adm_metric.split('/')
+                
+                next_hop = parts[via_index + 1].rstrip(',')
+                
+                # Интерфейс и время могут быть не у всех маршрутов
+                if len(parts) > via_index + 2:
+                    if ',' in parts[via_index + 2]:
+                        time_info = parts[via_index + 2].rstrip(',')
+                        interface = parts[via_index + 3] if len(parts) > via_index + 3 else None
+                    else:
+                        interface = parts[via_index + 2]
+            
+            routes.append({
+                'type': route_type,
+                'network': network,
+                'mask': None,
+                'prefix': mask_or_prefix,
+                'admin_distance': admin_distance,
+                'metric': metric,
+                'next_hop': next_hop,
+                'interface': interface,
+                'time': time_info
+            })
+    
+    return routes
 
 def parse_cisco_routing_table(output):
     """Парсинг таблицы маршрутизации Cisco"""
@@ -1052,7 +1181,7 @@ def get_mac_table(device_data):
     connection = None
     try:
         device_type = device_data.get('device_type', 'Cisco').lower()
-        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei' if device_type == 'huawei' else 'eltex'
         
         connection = ConnectHandler(
             device_type=netmiko_device_type,
@@ -1060,7 +1189,8 @@ def get_mac_table(device_data):
             username=device_data['username'],
             password=device_data['password'],
             secret=device_data.get('secret', ''),
-            timeout=20
+            timeout=20,
+            global_delay_factor=2
         )
         
         if device_data.get('secret'):
@@ -1069,9 +1199,12 @@ def get_mac_table(device_data):
         if device_type == 'cisco':
             output = connection.send_command('show mac address-table', delay_factor=2)
             return parse_cisco_mac_table(output)
-        else:
+        elif device_type == 'huawei':
             output = connection.send_command('display mac-address', delay_factor=2)
             return parse_huawei_mac_table(output)
+        elif device_type == 'eltex':
+            output = connection.send_command('show mac address-table', delay_factor=2)
+            return parse_eltex_mac_table(output)
             
     except Exception as e:
         app.logger.error(f"Ошибка получения MAC-таблицы: {str(e)}")
@@ -1079,6 +1212,50 @@ def get_mac_table(device_data):
     finally:
         if connection:
             connection.disconnect()
+
+def parse_eltex_mac_table(output):
+    """Парсинг вывода команды show mac address-table для Eltex"""
+    mac_entries = []
+    
+    try:
+        lines = output.splitlines()
+        start_processing = False
+        
+        for line in lines:
+            line = line.strip()
+            
+            # Пропускаем заголовки и служебную информацию
+            if 'Vlan' in line and 'Mac Address' in line and 'Interface' in line:
+                start_processing = True
+                continue
+                
+            if not start_processing or not line or line.startswith('-----') or line.startswith('Flags:') or line.startswith('Aging'):
+                continue
+                
+            # Разбираем строку с MAC-адресом
+            parts = re.split(r'\s{2,}', line)
+            if len(parts) >= 4:
+                vlan = parts[0].strip()
+                mac = parts[1].strip()
+                interface = parts[2].strip()
+                entry_type = parts[3].strip().capitalize() if len(parts) > 3 else 'Dynamic'
+                
+                # Определяем статус порта (упрощенно - предполагаем, что все порты up)
+                port_status = 'up'
+                
+                mac_entries.append({
+                    'vlan': vlan,
+                    'mac_address': mac,
+                    'type': entry_type,
+                    'port': interface,
+                    'port_status': port_status,
+                    'age': '0' if entry_type.lower() == 'static' else str(random.randint(10, 300))
+                })
+    
+    except Exception as e:
+        app.logger.error(f"Ошибка парсинга MAC таблицы Eltex: {str(e)}")
+    
+    return mac_entries
 
 @app.route('/arp-table')
 def arp_table():
@@ -1123,7 +1300,7 @@ def get_arp_table(device_data):
     connection = None
     try:
         device_type = device_data.get('device_type', 'Cisco').lower()
-        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei' if device_type == 'huawei' else 'eltex'
         
         connection = ConnectHandler(
             device_type=netmiko_device_type,
@@ -1131,7 +1308,8 @@ def get_arp_table(device_data):
             username=device_data['username'],
             password=device_data['password'],
             secret=device_data.get('secret', ''),
-            timeout=20
+            timeout=20,
+            global_delay_factor=2
         )
         
         if device_data.get('secret'):
@@ -1140,9 +1318,12 @@ def get_arp_table(device_data):
         if device_type == 'cisco':
             output = connection.send_command('show arp', delay_factor=2)
             return parse_cisco_arp_table(output)
-        else:
+        elif device_type == 'huawei':
             output = connection.send_command('display arp', delay_factor=2)
             return parse_huawei_arp_table(output)
+        elif device_type == 'eltex':
+            output = connection.send_command('show arp', delay_factor=2)
+            return parse_eltex_arp_table(output)
             
     except Exception as e:
         app.logger.error(f"Ошибка получения ARP таблицы: {str(e)}")
@@ -1150,6 +1331,57 @@ def get_arp_table(device_data):
     finally:
         if connection:
             connection.disconnect()
+
+def parse_eltex_arp_table(output):
+    """Парсинг вывода команды show arp для Eltex"""
+    arp_entries = []
+    
+    try:
+        lines = output.splitlines()
+        start_processing = False
+        
+        for line in lines:
+            line = line.strip()
+            
+            # Пропускаем заголовки и пустые строки
+            if 'VLAN' in line and 'Interface' in line and 'IP address' in line:
+                start_processing = True
+                continue
+                
+            if not start_processing or not line or line.startswith('-----') or line.startswith('Total number'):
+                continue
+                
+            # Разбираем строку с ARP записью
+            parts = re.split(r'\s{2,}', line)
+            if len(parts) >= 4:
+                interface = parts[0].strip()
+                ip = parts[1].strip()
+                mac = parts[2].strip()
+                status = parts[3].strip().lower() if len(parts) > 3 else 'dynamic'
+                
+                # Определяем тип записи
+                if status == 'dynamic':
+                    entry_type = 'Dynamic'
+                elif status == 'static':
+                    entry_type = 'Static'
+                else:
+                    entry_type = 'Incomplete'
+                
+                arp_entries.append({
+                    'ip_address': ip,
+                    'mac_address': mac,
+                    'interface': interface,
+                    'type': entry_type,
+                    'age': '0',  # ELTEX не показывает возраст записи
+                    'last_update': datetime.now().strftime('%H:%M:%S')
+                })
+    
+    except Exception as e:
+        app.logger.error(f"Ошибка парсинга ARP таблицы Eltex: {str(e)}")
+    
+    return arp_entries
+
+
 
 @app.route('/device-config')
 def device_config():
@@ -1205,7 +1437,11 @@ def get_device_configuration(device_data):
     connection = None
     try:
         device_type = device_data.get('device_type', 'cisco').lower()
-        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        netmiko_device_type = {
+            'cisco': 'cisco_ios',
+            'huawei': 'huawei',
+            'eltex': 'eltex'
+        }.get(device_type, 'cisco_ios')
         
         connection = ConnectHandler(
             device_type=netmiko_device_type,
@@ -1221,11 +1457,20 @@ def get_device_configuration(device_data):
             connection.enable()
         
         # Получаем полную конфигурацию
-        cmd = 'show running-config' if device_type == 'cisco' else 'display current-configuration'
+        if device_type == 'cisco':
+            cmd = 'show running-config'
+        elif device_type == 'huawei':
+            cmd = 'display current-configuration'
+        else:  # Eltex
+            cmd = 'show run'
+            
         output = connection.send_command(cmd, delay_factor=2)
         
         # Парсим конфигурацию
-        parsed_config = parse_device_configuration(output, device_type)
+        if device_type == 'eltex':
+            parsed_config = parse_eltex_configuration(output)
+        else:
+            parsed_config = parse_device_configuration(output, device_type)
         
         return {
             'raw_config': output,
@@ -1238,6 +1483,90 @@ def get_device_configuration(device_data):
     finally:
         if connection:
             connection.disconnect()
+
+def parse_eltex_configuration(config):
+    """Парсинг конфигурации Eltex устройства"""
+    result = {
+        'hostname': 'N/A',
+        'domain_name': 'N/A',
+        'vlans': [],
+        'interfaces': [],
+        'snmp': {'enabled': False, 'community': 'N/A'},
+        'ntp': {'enabled': False, 'servers': []},
+        'aaa': {'new_model': False, 'authentication': []},
+        'logging': {'enabled': False, 'servers': []},
+        'tacacs': {'enabled': False, 'servers': []},
+        'routes': []
+    }
+    
+    current_interface = None
+    
+    try:
+        for line in config.splitlines():
+            line = line.strip()
+            
+            # Hostname
+            if line.startswith('hostname '):
+                result['hostname'] = line.split('hostname ')[1]
+            
+            # VLANs
+            elif line.startswith('vlan '):
+                vlan_id = line.split('vlan ')[1]
+                result['vlans'].append({'id': vlan_id, 'name': ''})
+            
+            # Интерфейсы
+            elif line.startswith('interface '):
+                intf_name = line.split('interface ')[1]
+                current_interface = {
+                    'name': intf_name,
+                    'ip': 'N/A',
+                    'status': 'up',  # предполагаем, что интерфейс включен
+                    'description': 'N/A',
+                    'vlan': '1',
+                    'config': []
+                }
+                result['interfaces'].append(current_interface)
+            
+            # IP-адрес интерфейса
+            elif current_interface and line.startswith('ip address '):
+                ip_parts = line.split('ip address ')[1].split()
+                current_interface['ip'] = ip_parts[0]
+                if len(ip_parts) > 1:
+                    current_interface['netmask'] = ip_parts[1]
+            
+            # VLAN интерфейса
+            elif current_interface and line.startswith('switchport access vlan '):
+                current_interface['vlan'] = line.split('switchport access vlan ')[1]
+            
+            # SNMP
+            elif line.startswith('snmp-server community '):
+                result['snmp'] = {
+                    'enabled': True,
+                    'community': line.split('snmp-server community ')[1].split()[0]
+                }
+            
+            # Маршруты
+            elif line.startswith('ip route '):
+                route_parts = line.split('ip route ')[1].split()
+                if len(route_parts) >= 3:
+                    result['routes'].append({
+                        'network': route_parts[0],
+                        'mask': route_parts[1],
+                        'gateway': route_parts[2]
+                    })
+            
+            # Сохраняем конфигурационные строки интерфейса
+            elif current_interface and line and not line.startswith('!'):
+                current_interface['config'].append(line)
+            
+            # Конец интерфейса
+            elif line == 'exit' and current_interface:
+                current_interface = None
+    
+    except Exception as e:
+        app.logger.error(f"Ошибка парсинга конфигурации Eltex: {str(e)}")
+    
+    return result
 
 def parse_device_configuration(config, device_type):
     """Парсинг конфигурации устройства"""
@@ -1385,7 +1714,7 @@ def get_device_logs(device_data):
     connection = None
     try:
         device_type = device_data.get('device_type', 'cisco').lower()
-        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei'
+        netmiko_device_type = 'cisco_ios' if device_type == 'cisco' else 'huawei' if device_type == 'huawei' else 'eltex'
         
         connection = ConnectHandler(
             device_type=netmiko_device_type,
@@ -1405,9 +1734,14 @@ def get_device_logs(device_data):
             output = connection.send_command('show logging', delay_factor=2)
             logs = parse_cisco_logs(output)
         # Для Huawei
-        else:
+        elif device_type == 'huawei':
             output = connection.send_command('display logbuffer', delay_factor=2)
             logs = parse_huawei_logs(output)
+        # Для Eltex
+        elif device_type == 'eltex':
+            output = connection.send_command('show logging', delay_factor=2)
+            from device_connector import parse_eltex_logs
+            logs = parse_eltex_logs(output)
         
         return logs
         

@@ -1,34 +1,54 @@
 
 
-BGPMONtest#
-BGPMONtest#terminal width 511
-BGPMONtest#terminal length 0
-BGPMONtest#
-BGPMONtest#
-BGPMONtest#
-BGPMONtest#show interface Loopback3
-Loopback3 is up, line protocol is up 
-  Hardware is Loopback
-  Internet address is 2.2.2.2/32
-  MTU 1514 bytes, BW 100000 Kbit/sec, DLY 5000 usec, 
-     reliability 255/255, txload 1/255, rxload 1/255
-  Encapsulation LOOPBACK, loopback not set
-  Keepalive set (10 sec)
-  Last input 2d06h, output never, output hang never
-  Last clearing of "show interface" counters never
-  Input queue: 0/75/0/0 (size/max/drops/flushes); Total output drops: 0
-  Queueing strategy: fifo
-  Output queue: 0/0 (size/max)
-  5 minute input rate 0 bits/sec, 0 packets/sec
-  5 minute output rate 0 bits/sec, 0 packets/sec
-     0 packets input, 0 bytes, 0 no buffer
-     Received 0 broadcasts (0 IP multicasts)
-     0 runts, 0 giants, 0 throttles 
-     0 input errors, 0 CRC, 0 frame, 0 overrun, 0 ignored, 0 abort
-     61 packets output, 4368 bytes, 0 underruns
-     Output 0 broadcasts (0 IP multicasts)
-     0 output errors, 0 collisions, 0 interface resets
-     0 unknown protocol drops
-     0 output buffer failures, 0 output buffers swapped out
-BGPMONtest#
-BGPMONtest#exit
+
+
+5324A#
+
+
+5324A#
+
+
+5324A#terminal datadump
+
+5324A#
+
+
+5324A#
+
+
+5324A#show interfaces te1/0/1
+
+TenGigabitEthernet1/0/1 is up (connected)
+  Interface index is 1
+  Hardware is TenGigabitEthernet, MAC address is e8:28:c1:8a:a9:c1
+  IPv4 address is 192.168.1.1/24
+  Interface MTU is 1500
+  Full-duplex, 1000Mbps, link type is 10000Mbps full-duplex, media type is 10G-Fiber
+  Link is up for 7 days, 1 hours, 20 minutes and 38 seconds
+  Flow control is off, MDIX mode is off
+  FEC is disabled
+  15 second input rate is 0 Kbit/s
+  15 second output rate is 0 Kbit/s
+      25 packets input, 1684 bytes received
+      0 broadcasts, 0 multicasts
+      0 input errors, 0 FCS
+      0 oversize, 0 internal MAC
+      0 pause frames received
+      21540 packets output, 1663068 bytes sent
+      75 broadcasts, 21460 multicasts
+      0 output errors, 0 collisions
+      0 excessive collisions, 0 late collisions
+      0 pause frames transmitted
+  Output queues: (queue #: packets passed/packets dropped)
+      1: 0/0
+      2: 0/0
+      3: 0/0
+      4: 0/0
+      5: 0/0
+      6: 0/0
+      7: 0/0
+      8: 0/0
+5324A#
+
+
+5324A#exit
